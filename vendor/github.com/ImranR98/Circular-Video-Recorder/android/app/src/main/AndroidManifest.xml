@@ -2,7 +2,7 @@
     package="dev.imranr.circular_video_recorder">
    <uses-permission android:name="android.permission.INTERNET"/>
    <application
-        android:label="Circular Video Recorder"
+        android:label="b3.live"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
