@@ -44,6 +44,6 @@ vendor/github.com/ImranR98/Circular-Video-Recorder/android/app/profile
 vendor/github.com/ImranR98/Circular-Video-Recorder/android/app/release
 
 vendor/github.com/ImranR98/Circular-Video-Recorder/ios/Podfile
-vendor/github.com/ImranR98/Circular-Video-Recorder/ios/Flutter/Debug.xcconfig
-vendor/github.com/ImranR98/Circular-Video-Recorder/ios/Flutter/Release.xcconfig
-vendor/github.com/ImranR98/Circular-Video-Recorder/pubspec.lock
+**/Debug.xcconfig
+**/Release.xcconfig
+**/pubspec.lock
