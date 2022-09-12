@@ -18,6 +18,7 @@ void main() async {
   _cameras = await availableCameras();
   saveDir = await getRecordingDir();
   runApp(const MyApp());
+  SystemChrome.setEnabledSystemUIOverlays([]);
 }
 
 Future<Directory> getRecordingDir() async {
@@ -40,14 +41,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Circular Video Recorder',
+      title: 'b3.live',
       theme: ThemeData(
           colorScheme: const ColorScheme.light(
-              primary: Colors.red, secondary: Colors.amber)),
+              primary: Colors.black, secondary: Colors.amber)),
       darkTheme: ThemeData(
           colorScheme: const ColorScheme.dark(
               primary: Colors.redAccent, secondary: Colors.amberAccent)),
-      home: const MyHomePage(title: 'Circular Video Recorder'),
+      home: const MyHomePage(title: 'b3.live'),
     );
   }
 }
@@ -63,12 +64,15 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late CameraController cameraController;
-  int recordMins = 0;
-  int recordCount = -1;
+  //int recordMins = 0;
+  //int recordCount = -1;
+  int recordMins = 1;
+  int recordCount = 30;
   ResolutionPreset resolutionPreset = ResolutionPreset.medium;
   DateTime currentClipStart = DateTime.now();
   String? ip;
   Dhttpd? server;
+  String? localServer;
   bool saving = false;
   bool moving = false;
 
@@ -112,7 +116,35 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> generateHTMLList() async {
     List<FileSystemEntity> existingClips = await getExistingClips();
     String html =
-        '<!DOCTYPE html><html lang="en"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Circular Video Recorder - Clips</title><style>@media (prefers-color-scheme: dark) {html {background-color: #222222; color: white;}} body {font-family: Arial, Helvetica, sans-serif;} a {color: inherit;}</style></head><body><h1>Circular Video Recorder - Clips:</h1>';
+        '''<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta http-equiv="content-type" content="text/html; charset=utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>b3.live - Clips</title>
+			<style>
+				@media (prefers-color-scheme: dark) {html {background-color: #222222; color: white;}} 
+				body {font-family: Arial, Helvetica, sans-serif;} 
+				a {color: inherit;}</style>
+			<script>
+				alert("hello");
+				async function upload() {
+  				    const res = await fetch("http://192.168.1.72:8080/GRIME-1662678266202.mp4")
+  				    const blob = await res.blob()
+
+				    var data = new FormData()
+      				    data.append('file', blob , 'clap.mp4')
+
+				    fetch("http://192.168.1.87:5001/upload", {
+				      method: "POST",
+				      body: data
+				      })
+				}
+				upload();
+			</script>
+		</head>
+		<body><h1>b3.live - Clips:</h1>''';
+
     if (existingClips.isNotEmpty) {
       html += '<ul>';
       for (var element in existingClips) {
@@ -178,7 +210,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 width: cameraController.value.isRecordingVideo ? 5 : 2.5,
               ),
             ),
-            child: cameraController.value.isRecordingVideo
+            child: cameraController.value.isRecordingVideo && false
                 ? Text(
                     'Current clip started at ${currentClipStart.hour <= 9 ? '0${currentClipStart.hour}' : currentClipStart.hour}:${currentClipStart.minute <= 9 ? '0${currentClipStart.minute}' : currentClipStart.minute}',
                     textAlign: TextAlign.center,
@@ -187,7 +219,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 : null,
           ),
         ]),
-        if (cameraController.value.isRecordingVideo)
+        if (cameraController.value.isRecordingVideo && false)
           Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Container(
               padding: const EdgeInsets.fromLTRB(5, 0, 5, 5),
@@ -200,8 +232,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       const TextStyle(letterSpacing: 1, color: Colors.white)),
             ),
           ]),
-        Padding(
-          padding: const EdgeInsets.all(10.0),
+        //Padding(
+        //  padding: const EdgeInsets.all(10.0),
+        Visibility(
+          visible: false,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
@@ -209,7 +243,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: TextField(
                 onChanged: (value) {
                   setState(() {
-                    recordMins = value.trim() == '' ? 0 : int.parse(value);
+                    //recordMins = value.trim() == '' ? 0 : int.parse(value);
+                    recordMins = value.trim() == '' ? 1 : int.parse(value);
                   });
                 },
                 enabled: !cameraController.value.isRecordingVideo,
@@ -226,7 +261,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       onChanged: (value) {
                         setState(() {
                           recordCount =
-                              value.trim() == '' ? -1 : int.parse(value);
+                              //value.trim() == '' ? -1 : int.parse(value);
+                              value.trim() == '' ? 30 : int.parse(value);
                         });
                       },
                       enabled: !cameraController.value.isRecordingVideo,
@@ -261,8 +297,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(5.0, 0, 5, 0),
+        //Padding(
+        //  padding: const EdgeInsets.fromLTRB(5.0, 0, 5, 0),
+        Visibility(
+          visible: false,
           child: Text(getStatusText(),
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -304,16 +342,29 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         SwitchListTile(
           onChanged: (_) {
+            toggleLocal();
+          },
+          visualDensity: VisualDensity.compact,
+          value: localServer != null,
+          activeColor: Theme.of(context).colorScheme.secondary,
+          title: const Text('Serve Clips on Web GUI'),
+          //subtitle: server != null
+          //    ? Text(
+          //        'Serving on ${ip != null ? 'http://$ip:${server?.port} (LAN)' : 'http://${server?.host}:${server?.port}'}')
+          //    : null,
+        ),
+        SwitchListTile(
+          onChanged: (_) {
             toggleWeb();
           },
           visualDensity: VisualDensity.compact,
           value: server != null,
           activeColor: Theme.of(context).colorScheme.secondary,
-          title: const Text('Serve Clips on Web GUI'),
-          subtitle: server != null
-              ? Text(
-                  'Serving on ${ip != null ? 'http://$ip:${server?.port} (LAN)' : 'http://${server?.host}:${server?.port}'}')
-              : null,
+          title: const Text('Upload Clips to Live.Peer'),
+          //subtitle: server != null
+          //    ? Text(
+          //        'Serving on ${ip != null ? 'http://$ip:${server?.port} (LAN)' : 'http://${server?.host}:${server?.port}'}')
+          //    : null,
         ),
         if (saving || moving)
           Container(
@@ -356,10 +407,35 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> toggleLocal() async {
+    if (localServer == null) {
+      try {
+      //  ip = await NetworkInfo().getWifiIP();
+      //  localServer = await Dhttpd.start(
+      //      path: saveDir.path, address: InternetAddress.anyIPv4);
+	localServer = "192.168.1.1";
+        setState(() {});
+      } catch (e) {
+        showInSnackBar('Error - try restarting the app');
+        await disableLocal();
+      }
+    } else {
+      await disableLocal();
+    }
+  }
+
   Future<void> disableWeb() async {
     await server?.destroy();
     setState(() {
       server = null;
+      ip = null;
+    });
+  }
+
+  Future<void> disableLocal() async {
+    //await localServer?.destroy();
+    setState(() {
+      localServer = null;
       ip = null;
     });
   }
@@ -405,7 +481,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   String latestFileName() {
-    return 'CVR-${currentClipStart.millisecondsSinceEpoch.toString()}.mp4';
+    return 'GRIME-${currentClipStart.millisecondsSinceEpoch.toString()}.mp4';
   }
 
   Future<void> stopRecording(bool cleanup) async {
@@ -472,7 +548,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       Navigator.of(context).pop();
                       for (var eC in existingClips) {
                         await GallerySaver.saveVideo(eC.path,
-                            albumName: 'Circular Video Recorder');
+                            albumName: 'b3.live');
                       }
                       await Future.wait(existingClips.map((eC) => eC.delete()));
                       generateHTMLList();
