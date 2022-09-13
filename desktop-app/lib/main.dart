@@ -58,6 +58,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   String? ip;
+  int port = 8000;
   bool foundFile = false;
   Directory? directory;
 
@@ -75,13 +76,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> getIp() async {
-      ip  = await NetworkInfo().getWifiIP();
+      ip = await NetworkInfo().getWifiIP();
+      port = int.fromEnvironment('PORT', defaultValue: 8000);
   }
 
   Future _startWebServer() async {
     runZoned(() {
       const LISTEN = String.fromEnvironment('LISTEN', defaultValue: '0.0.0.0');
-      HttpServer.bind(LISTEN, 8000).then((server) {
+      HttpServer.bind(LISTEN, port).then((server) {
         print('Server running at: ${server.address.address}');
         server.transform(HttpBodyHandler()).listen((HttpRequestBody body) async {
           print('Request URI');
@@ -164,7 +166,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: PrettyQr(
           //image: AssetImage('images/twitter.png'),
           size: 300,
-          data: '${String.fromEnvironment('LISTEN', defaultValue: '0.0.0.0') == '0.0.0.0' ? '$ip' : String.fromEnvironment('LISTEN')}',
+          data: '${String.fromEnvironment('LISTEN', defaultValue: '0.0.0.0') == '0.0.0.0' ? 'b3live://local/$ip$port' : '${String.fromEnvironment('LISTEN')}$port'}',
           errorCorrectLevel: QrErrorCorrectLevel.M,
           typeNumber: null,
           roundEdges: true,

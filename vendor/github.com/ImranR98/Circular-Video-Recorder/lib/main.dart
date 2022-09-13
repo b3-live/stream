@@ -9,9 +9,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:dhttpd/dhttpd.dart';
 import 'package:gallery_saver/gallery_saver.dart';
+import 'package:uni_links/uni_links.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+
 
 late List<CameraDescription> _cameras;
 late Directory saveDir;
+bool _initialURILinkHandled = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,6 +70,12 @@ class _MyHomePageState extends State<MyHomePage> {
   late CameraController cameraController;
   //int recordMins = 0;
   //int recordCount = -1;
+  Uri? _initialURI;
+  Uri? _currentURI;
+  Object? _err;
+
+  StreamSubscription? _streamSubscription;
+
   String? qr;
   bool camState = false;
   bool dirState = false;
@@ -83,14 +93,109 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     KeepScreenOn.turnOn();
+    _initURIHandler();
+    _incomingLinkHandler();
     initCam();
     generateHTMLList();
   }
+
+  Future<void> _initURIHandler() async {
+    if (!_initialURILinkHandled) {
+      _initialURILinkHandled = true;
+      Fluttertoast.showToast(
+          msg: "Starting camera, one moment",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.green,
+          textColor: Colors.white
+      );
+      try {
+        final initialURI = await getInitialUri();
+        // Use the initialURI and warn the user if it is not correct,
+        // but keep in mind it could be `null`.
+        if (initialURI != null) {
+          debugPrint("Initial URI received $initialURI");
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _initialURI = initialURI;
+          });
+        } else {
+          debugPrint("Null Initial URI received");
+        }
+      } on PlatformException {
+        // Platform messages may fail, so we use a try/catch PlatformException.
+        // Handle exception by warning the user their action did not succeed
+        debugPrint("Failed to receive initial uri");
+      } on FormatException catch (err) {
+        if (!mounted) {
+          return;
+        }
+        debugPrint('Malformed Initial URI received');
+        setState(() => _err = err);
+      }
+    }
+  }
+
+  /// Handle incoming links - the ones that the app will receive from the OS
+  /// while already started.
+  void _incomingLinkHandler() {
+    // It will handle app links while the app is already started - be it in
+    // the foreground or in the background.
+    _streamSubscription = uriLinkStream.listen((Uri? uri) {
+       if (!mounted) {
+         return;
+       }
+       debugPrint('Received URI: $uri');
+       setState(() {
+         _currentURI = uri;
+         _err = null;
+       });
+     }, onError: (Object err) {
+       if (!mounted) {
+         return;
+       }
+       debugPrint('Error occurred: $err');
+       setState(() {
+         _currentURI = null;
+         if (err is FormatException) {
+           _err = err;
+         } else {
+           _err = null;
+         }
+       });
+     });
+  }
+
 
   Future<void> initCam() async {
     cameraController = CameraController(_cameras[0], resolutionPreset);
     try {
       await cameraController.initialize();
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    } catch (e) {
+      if (e is CameraException) {
+        switch (e.code) {
+          case 'CameraAccessDenied':
+            showInSnackBar('User denied camera access');
+            break;
+          default:
+            showInSnackBar('Unknown error');
+            break;
+        }
+      }
+    }
+  }
+
+  Future<void> killCam() async {
+    cameraController = CameraController(_cameras[0], resolutionPreset);
+    try {
+      await cameraController.dispose();
       if (!mounted) {
         return;
       }
@@ -380,38 +485,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 ]),
               )),
         if (saving || moving) const LinearProgressIndicator(),
-            Expanded(
-                child: camState
-                    ? Center(
-                        child: SizedBox(
-                          width: 300.0,
-                          height: 600.0,
-                          child: QrCamera(
-                            onError: (context, error) => Text(
-                              error.toString(),
-                              style: TextStyle(color: Colors.red),
-                            ),
-                            cameraDirection: dirState ? CameraDirection.FRONT : CameraDirection.BACK,
-                            qrCodeCallback: (code) {
-                              setState(() {
-                                qr = code;
-                              });
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.transparent,
-                                border: Border.all(
-                                  color: Colors.orange,
-                                  width: 10.0,
-                                  style: BorderStyle.solid,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Center(child: Text("Camera inactive"))),
-            Text("QRCODE: $qr"),
       ]),
       floatingActionButton: FloatingActionButton(
           child: Text(
@@ -420,6 +493,8 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           onPressed: () {
             setState(() {
+	      if (!camState)
+		killCam();
               camState = !camState;
 	      if (!camState)
  	        initCam();
@@ -617,6 +692,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void dispose() {
     cameraController.dispose();
     KeepScreenOn.turnOff();
+    _streamSubscription?.cancel();
     super.dispose();
   }
 }
