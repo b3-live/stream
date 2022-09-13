@@ -6,6 +6,7 @@ import 'package:network_info_plus/network_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:process_run/shell.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 void main() {
   runApp(const MyApp());
@@ -79,7 +80,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future _startWebServer() async {
     runZoned(() {
-      HttpServer.bind('0.0.0.0', 8000).then((server) {
+      const LISTEN = String.fromEnvironment('LISTEN', defaultValue: '0.0.0.0');
+      HttpServer.bind(LISTEN, 8000).then((server) {
         print('Server running at: ${server.address.address}');
         server.transform(HttpBodyHandler()).listen((HttpRequestBody body) async {
           print('Request URI');
@@ -159,7 +161,15 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
-        child: Column(
+        child: PrettyQr(
+          //image: AssetImage('images/twitter.png'),
+          size: 300,
+          data: '${String.fromEnvironment('LISTEN', defaultValue: '0.0.0.0') == '0.0.0.0' ? '$ip' : String.fromEnvironment('LISTEN')}',
+          errorCorrectLevel: QrErrorCorrectLevel.M,
+          typeNumber: null,
+          roundEdges: true,
+        ),
+        //child: Column(
           // Column is also a layout widget. It takes a list of children and
           // arranges them vertically. By default, it sizes itself to fit its
           // children horizontally, and tries to be as tall as its parent.
@@ -174,22 +184,22 @@ class _MyHomePageState extends State<MyHomePage> {
           // center the children vertically; the main axis here is the vertical
           // axis because Columns are vertical (the cross axis would be
           // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
- 	      'Serving on ${ip != null ? '$ip' : 'You have pushed the button this many times: '}'
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
+         // mainAxisAlignment: MainAxisAlignment.center,
+         // children: <Widget>[
+         //   Text(
+ 	 //     'Serving on ${ip != null ? '$ip' : 'You have pushed the button this many times: '}'
+         //   ),
+         //   Text(
+         //     '$_counter',
+         //     style: Theme.of(context).textTheme.headline4,
+         //   ),
+         // ],
+        //),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
         tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.not_started),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }

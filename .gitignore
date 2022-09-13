@@ -49,3 +49,5 @@ vendor/github.com/ImranR98/Circular-Video-Recorder/ios/Podfile
 **/pubspec.lock
 
 desktop-app/build
+**.env
+**env/
