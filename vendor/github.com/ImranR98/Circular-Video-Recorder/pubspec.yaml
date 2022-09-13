@@ -41,6 +41,8 @@ dependencies:
   dhttpd: ^4.0.1
   network_info_plus: ^2.1.3
   gallery_saver: ^2.3.2
+  qr_mobile_vision:
+    path: ../
 
 flutter_icons:
   android: true

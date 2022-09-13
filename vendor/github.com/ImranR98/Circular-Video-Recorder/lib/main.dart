@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-
+import 'package:qr_mobile_vision/qr_camera.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -66,6 +66,9 @@ class _MyHomePageState extends State<MyHomePage> {
   late CameraController cameraController;
   //int recordMins = 0;
   //int recordCount = -1;
+  String? qr;
+  bool camState = false;
+  bool dirState = false;
   int recordMins = 1;
   int recordCount = 30;
   ResolutionPreset resolutionPreset = ResolutionPreset.medium;
@@ -232,8 +235,6 @@ class _MyHomePageState extends State<MyHomePage> {
                       const TextStyle(letterSpacing: 1, color: Colors.white)),
             ),
           ]),
-        //Padding(
-        //  padding: const EdgeInsets.all(10.0),
         Visibility(
           visible: false,
           child: Row(
@@ -297,8 +298,6 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
         ),
-        //Padding(
-        //  padding: const EdgeInsets.fromLTRB(5.0, 0, 5, 0),
         Visibility(
           visible: false,
           child: Text(getStatusText(),
@@ -381,7 +380,51 @@ class _MyHomePageState extends State<MyHomePage> {
                 ]),
               )),
         if (saving || moving) const LinearProgressIndicator(),
+            Expanded(
+                child: camState
+                    ? Center(
+                        child: SizedBox(
+                          width: 300.0,
+                          height: 600.0,
+                          child: QrCamera(
+                            onError: (context, error) => Text(
+                              error.toString(),
+                              style: TextStyle(color: Colors.red),
+                            ),
+                            cameraDirection: dirState ? CameraDirection.FRONT : CameraDirection.BACK,
+                            qrCodeCallback: (code) {
+                              setState(() {
+                                qr = code;
+                              });
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                border: Border.all(
+                                  color: Colors.orange,
+                                  width: 10.0,
+                                  style: BorderStyle.solid,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(child: Text("Camera inactive"))),
+            Text("QRCODE: $qr"),
       ]),
+      floatingActionButton: FloatingActionButton(
+          child: Text(
+            "on/off",
+            textAlign: TextAlign.center,
+          ),
+          onPressed: () {
+            setState(() {
+              camState = !camState;
+	      if (!camState)
+ 	        initCam();
+            });
+          }),
     );
   }
 
