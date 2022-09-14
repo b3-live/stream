@@ -1,10 +1,30 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="dev.imranr.circular_video_recorder">
    <uses-permission android:name="android.permission.INTERNET"/>
+   <uses-permission android:name="android.permission.CAMERA"/>
+   <uses-permission android:name="android.permission.VIDEO_CAPTURE" />
+   <uses-permission android:name="android.permission.AUDIO_CAPTURE" />
+   <uses-feature android:name="android.hardware.camera" android:required="true"/>
+   <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+   <uses-permission android:name="android.permission.RECORD_AUDIO" />
+   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" /> 
+   <uses-feature android:name="android.hardware.audio.pro" />
+   <uses-feature android:name="android.hardware.microphone"/>
+   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+   <uses-permission android:name="android.permission.STORAGE"/>
    <application
         android:label="b3.live"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+	<provider
+	    android:name="com.pichillilorenzo.flutter_inappwebview.InAppWebViewFileProvider"
+	    android:authorities="${applicationId}.flutter_inappwebview.fileprovider"
+	    android:exported="false"
+	    android:grantUriPermissions="true">
+	    <meta-data
+		android:name="android.support.FILE_PROVIDER_PATHS"
+		android:resource="@xml/provider_paths" />
+	</provider>
         <activity
             android:name=".MainActivity"
             android:exported="true"

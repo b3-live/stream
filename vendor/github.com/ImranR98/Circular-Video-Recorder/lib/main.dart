@@ -11,14 +11,25 @@ import 'package:dhttpd/dhttpd.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:uni_links/uni_links.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-
+import 'package:http/http.dart' as http;
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 late List<CameraDescription> _cameras;
 late Directory saveDir;
 bool _initialURILinkHandled = false;
 
+String? baseUri;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Permission.camera.request();
+  await Permission.microphone.request();
+  if (Platform.isAndroid) {
+    await AndroidInAppWebViewController.setWebContentsDebuggingEnabled(true);
+  }
   _cameras = await availableCameras();
   saveDir = await getRecordingDir();
   runApp(const MyApp());
@@ -67,6 +78,27 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+// InAppWeb
+  final GlobalKey webViewKey = GlobalKey();
+  InAppWebViewController? webViewController;
+  InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
+      crossPlatform: InAppWebViewOptions(
+        useShouldOverrideUrlLoading: true,
+        mediaPlaybackRequiresUserGesture: false,
+      ),
+      android: AndroidInAppWebViewOptions(
+        useHybridComposition: true,
+      ),
+      ios: IOSInAppWebViewOptions(
+        allowsInlineMediaPlayback: true,
+      ));
+
+  late PullToRefreshController pullToRefreshController;
+  String url = "";
+  double progress = 0;
+  final urlController = TextEditingController();
+
+// InAppWeb
   late CameraController cameraController;
   //int recordMins = 0;
   //int recordCount = -1;
@@ -97,6 +129,22 @@ class _MyHomePageState extends State<MyHomePage> {
     _incomingLinkHandler();
     initCam();
     generateHTMLList();
+// InApp
+    pullToRefreshController = PullToRefreshController(
+      options: PullToRefreshOptions(
+        color: Colors.blue,
+      ),
+      onRefresh: () async {
+        if (Platform.isAndroid) {
+          webViewController?.reload();
+        } else if (Platform.isIOS) {
+          webViewController?.loadUrl(
+              urlRequest: URLRequest(url: await webViewController?.getUrl()));
+        }
+      },
+    );
+// InApp
+
   }
 
   Future<void> _initURIHandler() async {
@@ -115,6 +163,8 @@ class _MyHomePageState extends State<MyHomePage> {
         // Use the initialURI and warn the user if it is not correct,
         // but keep in mind it could be `null`.
         if (initialURI != null) {
+          baseUri = "${initialURI?.query.toString()}";
+          debugPrint("initialURI: base URI received $baseUri");
           debugPrint("Initial URI received $initialURI");
           if (!mounted) {
             return;
@@ -149,6 +199,8 @@ class _MyHomePageState extends State<MyHomePage> {
          return;
        }
        debugPrint('Received URI: $uri');
+       baseUri = "${uri?.query.toString()}";
+       debugPrint("_incomingLinkHandler: base URI received $uri");
        setState(() {
          _currentURI = uri;
          _err = null;
@@ -270,9 +322,9 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
+      //appBar: AppBar(
+     //  title: Text(widget.title),
+     // ),
       body: Column(children: [
         Expanded(
           child: Container(
@@ -318,13 +370,14 @@ class _MyHomePageState extends State<MyHomePage> {
                 width: cameraController.value.isRecordingVideo ? 5 : 2.5,
               ),
             ),
-            child: cameraController.value.isRecordingVideo && false
-                ? Text(
-                    'Current clip started at ${currentClipStart.hour <= 9 ? '0${currentClipStart.hour}' : currentClipStart.hour}:${currentClipStart.minute <= 9 ? '0${currentClipStart.minute}' : currentClipStart.minute}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.white))
-                : null,
+
+//            child: cameraController.value.isRecordingVideo && false
+ //               ? Text(
+//                    'Current clip started at ${currentClipStart.hour <= 9 ? '0${currentClipStart.hour}' : currentClipStart.hour}:${currentClipStart.minute <= 9 ? '0${currentClipStart.minute}' : currentClipStart.minute}',
+//                    textAlign: TextAlign.center,
+//                    style: const TextStyle(
+//                        fontWeight: FontWeight.bold, color: Colors.white))
+//                : null,
           ),
         ]),
         if (cameraController.value.isRecordingVideo && false)
@@ -409,6 +462,96 @@ class _MyHomePageState extends State<MyHomePage> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
+        SizedBox(
+              width: 640.0,
+              height: 280.0,
+              child: InAppWebView(
+                        key: webViewKey,
+                        initialUrlRequest:
+                        URLRequest(url: Uri.parse("https://audiomotion.me")),
+                        initialOptions: options,
+                        pullToRefreshController: pullToRefreshController,
+                        onWebViewCreated: (controller) {
+                          webViewController = controller;
+                        },
+                        onLoadStart: (controller, url) {
+                          setState(() {
+                            this.url = url.toString();
+                            urlController.text = this.url;
+                          });
+                        },
+                        androidOnPermissionRequest: (controller, origin, resources) async {
+                          return PermissionRequestResponse(
+                              resources: resources,
+                              action: PermissionRequestResponseAction.GRANT);
+                        },
+                        shouldOverrideUrlLoading: (controller, navigationAction) async {
+                          var uri = navigationAction.request.url!;
+
+                          if (![ "http", "https", "file", "chrome",
+                            "data", "javascript", "about"].contains(uri.scheme)) {
+                            if (await canLaunch(url)) {
+                              // Launch the App
+                              await launch(
+                                url,
+                              );
+                              // and cancel the request
+                              return NavigationActionPolicy.CANCEL;
+                            }
+                          }
+
+                          return NavigationActionPolicy.ALLOW;
+                        },
+                        onLoadStop: (controller, url) async {
+                          pullToRefreshController.endRefreshing();
+                          setState(() {
+                            this.url = url.toString();
+                            urlController.text = this.url;
+                          });
+                        },
+                        onLoadError: (controller, url, code, message) {
+                          pullToRefreshController.endRefreshing();
+                        },
+                        onProgressChanged: (controller, progress) {
+                          if (progress == 100) {
+                            pullToRefreshController.endRefreshing();
+                          }
+                          setState(() {
+                            this.progress = progress / 100;
+                            urlController.text = this.url;
+                          });
+                        },
+                        onUpdateVisitedHistory: (controller, url, androidIsReload) {
+                          setState(() {
+                            this.url = url.toString();
+                            urlController.text = this.url;
+                          });
+                        },
+                        onConsoleMessage: (controller, consoleMessage) {
+                          print(consoleMessage);
+                        },
+                      ),
+/*              child: InAppWebView(
+                      initialUrl: "https://audiomotion.me",
+                      initialOptions: InAppWebViewGroupOptions(
+                        crossPlatform: InAppWebViewOptions(
+                          mediaPlaybackRequiresUserGesture: false,
+                          //debuggingEnabled: true,
+                        ),
+                      ),
+                      onWebViewCreated: (InAppWebViewController controller) {
+                        _webViewController = controller;
+                      },
+                      androidOnPermissionRequest: (InAppWebViewController controller, String origin, List<String> resources) async {
+                        return PermissionRequestResponse(resources: resources, action: PermissionRequestResponseAction.GRANT);
+                      }
+                  ),
+*/
+              //child: const WebView(
+              //        initialUrl: 'https://audiomotion.me',
+               //       javascriptMode: JavascriptMode.unrestricted,
+	        //  ),
+        ), 
         Padding(
           padding: const EdgeInsets.fromLTRB(5, 0, 5, 0),
           child: Row(
@@ -443,7 +586,8 @@ class _MyHomePageState extends State<MyHomePage> {
               )
             ],
           ),
-        ),
+        ), 
+        /*
         SwitchListTile(
           onChanged: (_) {
             toggleLocal();
@@ -456,7 +600,7 @@ class _MyHomePageState extends State<MyHomePage> {
           //    ? Text(
           //        'Serving on ${ip != null ? 'http://$ip:${server?.port} (LAN)' : 'http://${server?.host}:${server?.port}'}')
           //    : null,
-        ),
+        ), */
         SwitchListTile(
           onChanged: (_) {
             toggleWeb();
@@ -469,7 +613,7 @@ class _MyHomePageState extends State<MyHomePage> {
           //    ? Text(
           //        'Serving on ${ip != null ? 'http://$ip:${server?.port} (LAN)' : 'http://${server?.host}:${server?.port}'}')
           //    : null,
-        ),
+        ), 
         if (saving || moving)
           Container(
               decoration:
@@ -607,12 +751,19 @@ class _MyHomePageState extends State<MyHomePage> {
       XFile tempFile = await cameraController.stopVideoRecording();
       setState(() {});
       String appDocPath = saveDir.path;
-      String filePath = '$appDocPath/${latestFileName()}';
+      String fileName = '${latestFileName()}';
+      String filePath = '$appDocPath/${fileName}';
+      ip = await NetworkInfo().getWifiIP();
+
       // Once clip is saved, deleting cached copy and cleaning up old clips can be done asynchronously
       setState(() {
         saving = true;
       });
       tempFile.saveTo(filePath).then((_) {
+        final response =  http
+          .get(Uri.parse('$baseUri/download?http://$ip:8080/$fileName'));
+	// b3live://local?http://192.168.1.87:8000/download/?http://192.168.1.180:8080/GRIME-1663127048613.mp4
+        debugPrint('BaseURI = $baseUri/download/?http://$ip:8080/$fileName');
         File(tempFile.path).delete();
         generateHTMLList();
         setState(() {

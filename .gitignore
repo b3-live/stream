@@ -10,6 +10,8 @@
 .svn/
 migrate_working_dir/
 
+desktop-app/videos
+
 # IntelliJ related
 *.iml
 *.ipr

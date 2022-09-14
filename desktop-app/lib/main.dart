@@ -7,10 +7,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:process_run/shell.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:downloadable/downloadable.dart';
 
 void main() {
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -62,6 +64,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool foundFile = false;
   Directory? directory;
 
+
   void _incrementCounter() {
     setState(() {
       // This call to setState tells the Flutter framework that something has
@@ -86,8 +89,8 @@ class _MyHomePageState extends State<MyHomePage> {
       HttpServer.bind(LISTEN, port).then((server) {
         print('Server running at: ${server.address.address}');
         server.transform(HttpBodyHandler()).listen((HttpRequestBody body) async {
-          print('Request URI');
-          switch (body.request.uri.toString()) {
+          print('Request URI path ${body.request.uri.path.toString()}');
+          switch (body.request.uri.path.toString()) {
             case '/upload': {
               if (body.type != "form") {
                 body.request.response.statusCode = 400;
@@ -113,15 +116,36 @@ class _MyHomePageState extends State<MyHomePage> {
               body.request.response.close();
               break;
             }
-            //case '/':
-            //  {
-                //String _content = await _loadStatic('index.html');
-                //body.request.response.statusCode = 200;
-                //body.request.response.headers.set("Content-Type", "text/html; charset=utf-8");
-                //body.request.response.write(_content);
-                //body.request.response.close();
-                //break;
-            //  }
+            case '/download':
+              {
+                print('Download: ${body.request.uri.query.toString()}');
+                String fileName = body.request.uri.query.toString().split('/').last;
+		var tempFolder = 'videos';
+
+		var downloadable = Downloadable(
+		  downloadLink: '${body.request.uri.query.toString()}',
+		  fileAddress: tempFolder + '/$fileName',
+		);
+
+		var downloaded = await downloadable.downloaded;
+
+		if (!downloaded) {
+		  var onDownloadComplete = () {
+		    print('download complete!');
+		  };
+
+		  var progressStream = downloadable.download(onDownloadComplete);
+
+		  progressStream.listen((p) {
+		    print('${p * 100}%...');
+		  });
+		}
+                body.request.response.statusCode = 200;
+                body.request.response.headers.set("Content-Type", "text/html; charset=utf-8");
+                body.request.response.write("Download");
+                body.request.response.close();
+                break;
+              }
             default: {
               print('Request URI ${body.request.uri.toString().substring(1)}');
               var shell = Shell();
@@ -166,7 +190,9 @@ class _MyHomePageState extends State<MyHomePage> {
         child: PrettyQr(
           //image: AssetImage('images/twitter.png'),
           size: 300,
-          data: '${String.fromEnvironment('LISTEN', defaultValue: '0.0.0.0') == '0.0.0.0' ? 'b3live://local/$ip$port' : '${String.fromEnvironment('LISTEN')}$port'}',
+          data: '${String.fromEnvironment('LISTEN', defaultValue: '0.0.0.0') == '0.0.0.0' ? 
+            'b3live://local?http://$ip:$port' : 
+	    'b3live://local?http://${String.fromEnvironment('LISTEN')}:$port'}',
           errorCorrectLevel: QrErrorCorrectLevel.M,
           typeNumber: null,
           roundEdges: true,
