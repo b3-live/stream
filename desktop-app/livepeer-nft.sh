@@ -76,22 +76,30 @@ echo "2. Uploading file..."
 uploadFile "$FILENAME" "$uploadUrl"
 
 echo -n "Waiting for asset to be ready..."
-while [[ "$(echo "$asset" | jq -re '.status')" == "waiting" ]]; do
+while [[ "$(echo "$asset" | jq -re '.status.phase')" == "waiting" ]]; do
   sleep 1
   echo -n "."
   asset=$(getAsset $assetId)
 done
 echo
 
-if [[ "$(echo $asset | jq -re '.status')" != "ready" ]]; then
+echo -n "Waiting for asset processing to complete..."
+while [[ "$(echo "$asset" | jq -re '.status.phase')" == "processing" ]]; do
+  sleep 1
+  echo -n "."
+  asset=$(getAsset $assetId)
+done
+
+if [[ "$(echo $asset | jq -re '.status.phase')" != "ready" ]]; then
   echo "Asset upload failed. Asset:"
   echo "$asset" | jq
+  echo "Status: $(echo $asset | jq -re '.status')"
   exit 1
 fi
 
 # Exporting the file to IPFS
 
-echo -n "3. Starting export... "
+echo -n "\n3. Starting export... "
 
 task=$(exportAsset $assetId | jq -cre '.task')
 taskId=$(echo $task | jq -cre '.id')
@@ -100,6 +108,7 @@ echo "Created export task with ID $taskId!"
 
 echo "Waiting for export task completion..."
 lastProgress="0"
+echo "Task status: $(echo $task | jq -re '.status.phase')"
 while ! [[ $(echo $task | jq -re '.status.phase') =~ ^(completed|failed)$ ]]; do
   progress=$(echo $task | jq -r '.status.progress')
   if [[ "$progress" != "null" ]] && [[ "$progress" != "$lastProgress" ]]; then
