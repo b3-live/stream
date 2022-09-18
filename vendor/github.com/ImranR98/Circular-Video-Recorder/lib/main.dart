@@ -17,6 +17,8 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'barecode_scanner_controller.dart';
+
 late List<CameraDescription> _cameras;
 late Directory saveDir;
 bool _initialURILinkHandled = false;
@@ -117,9 +119,11 @@ class _MyHomePageState extends State<MyHomePage> {
   DateTime currentClipStart = DateTime.now();
   String? ip;
   Dhttpd? server;
-  String? localServer;
+  String? createNFT;
   bool saving = false;
   bool moving = false;
+  bool browser = true;
+  bool metamaskInstalled = false;
 
   @override
   void initState() {
@@ -129,6 +133,8 @@ class _MyHomePageState extends State<MyHomePage> {
     _incomingLinkHandler();
     initCam();
     generateHTMLList();
+    _checkForMetaMask();
+
 // InApp
     pullToRefreshController = PullToRefreshController(
       options: PullToRefreshOptions(
@@ -147,6 +153,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   }
 
+  Future<void> _checkForMetaMask() async {
+    metamaskInstalled = await canLaunch("https://metamask.app.link");
+  }
+  
   Future<void> _initURIHandler() async {
     if (!_initialURILinkHandled) {
       _initialURILinkHandled = true;
@@ -326,37 +336,41 @@ class _MyHomePageState extends State<MyHomePage> {
      //  title: Text(widget.title),
      // ),
       body: Column(children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.black,
-              border: Border(
-                  left: BorderSide(
-                      color: cameraController.value.isRecordingVideo
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.black,
-                      width: 5),
-                  right: BorderSide(
-                      color: cameraController.value.isRecordingVideo
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.black,
-                      width: 5),
-                  top: BorderSide(
-                      color: cameraController.value.isRecordingVideo
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.black,
-                      width: 5)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(1.0),
-              child: Center(
-                child: cameraController.value.isInitialized
-                    ? CameraPreview(cameraController)
-                    : const Text('Could not Access Camera'),
-              ),
-            ),
-          ),
-        ),
+        Visibility(
+          visible: !browser,
+	  child:
+		Expanded(
+		  child: Container(
+		    decoration: BoxDecoration(
+		      color: Colors.black,
+		      border: Border(
+			  left: BorderSide(
+			      color: cameraController.value.isRecordingVideo
+				  ? Theme.of(context).colorScheme.primary
+				  : Colors.black,
+			      width: 5),
+			  right: BorderSide(
+			      color: cameraController.value.isRecordingVideo
+				  ? Theme.of(context).colorScheme.primary
+				  : Colors.black,
+			      width: 5),
+			  top: BorderSide(
+			      color: cameraController.value.isRecordingVideo
+				  ? Theme.of(context).colorScheme.primary
+				  : Colors.black,
+			      width: 5)),
+		    ),
+		    child: Padding(
+		      padding: const EdgeInsets.all(1.0),
+		      child: Center(
+			child: cameraController.value.isInitialized
+			    ? CameraPreview(cameraController)
+			    : const Text('Could not Access Camera'),
+		      ),
+		    ),
+		  ),
+		),
+	),
         Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Container(
             decoration: BoxDecoration(
@@ -462,13 +476,17 @@ class _MyHomePageState extends State<MyHomePage> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
-        SizedBox(
-              width: 640.0,
-              height: 280.0,
+        Visibility(
+          visible: browser,
+          child: Expanded /*SizedBox*/(
+              //width: 640.0,
+              //height: 1080 /* 280.0 */,
               child: InAppWebView(
                         key: webViewKey,
                         initialUrlRequest:
-                        URLRequest(url: Uri.parse("https://audiomotion.me")),
+                        //URLRequest(url: Uri.parse("https://audiomotion.me")),
+                        URLRequest(url: Uri.parse("https://your.cmptr.cloud:2017/stream/b3.live-site/")),
+                        //URLRequest(url: Uri.parse("https://blog.minhazav.dev/research/html5-qrcode")),
                         initialOptions: options,
                         pullToRefreshController: pullToRefreshController,
                         onWebViewCreated: (controller) {
@@ -551,69 +569,83 @@ class _MyHomePageState extends State<MyHomePage> {
               //        initialUrl: 'https://audiomotion.me',
                //       javascriptMode: JavascriptMode.unrestricted,
 	        //  ),
-        ), 
-        Padding(
-          padding: const EdgeInsets.fromLTRB(5, 0, 5, 0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: ElevatedButton(
-                    onPressed: cameraController.value.isRecordingVideo
-                        ? () => stopRecording(false)
-                        : recordMins > 0 && recordCount >= 0
-                            ? recordRecursively
-                            : null,
-                    child: Text(cameraController.value.isRecordingVideo
-                        ? 'Stop Recording'
-                        : 'Start Recording')),
+          ), 
+        ),
+        Visibility(
+          visible: !browser,
+          child:
+            Padding(
+              padding: const EdgeInsets.fromLTRB(5, 0, 5, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+              child: ElevatedButton(
+                  onPressed: cameraController.value.isRecordingVideo
+                ? () => stopRecording(false)
+                : recordMins > 0 && recordCount >= 0
+                    ? recordRecursively
+                    : null,
+                  child: Text(cameraController.value.isRecordingVideo
+                ? 'Stop Recording'
+                : 'Start Recording')),
+                  ),
+                  const SizedBox(width: 5),
+                  OutlinedButton(
+              onPressed: moveToGallery,
+              style: Theme.of(context).brightness == Brightness.light
+                  ? ButtonStyle(
+                foregroundColor:
+                    MaterialStateProperty.all(Colors.black),
+                overlayColor: MaterialStateProperty.all(
+                    const Color.fromARGB(20, 0, 0, 0)))
+                  : ButtonStyle(
+                foregroundColor:
+                    MaterialStateProperty.all(Colors.white),
+                overlayColor: MaterialStateProperty.all(
+                    const Color.fromARGB(20, 255, 255, 255))),
+              child: const Text('Backup to Gallery'),
+                  )
+                ],
               ),
-              const SizedBox(width: 5),
-              OutlinedButton(
-                onPressed: moveToGallery,
-                style: Theme.of(context).brightness == Brightness.light
-                    ? ButtonStyle(
-                        foregroundColor:
-                            MaterialStateProperty.all(Colors.black),
-                        overlayColor: MaterialStateProperty.all(
-                            const Color.fromARGB(20, 0, 0, 0)))
-                    : ButtonStyle(
-                        foregroundColor:
-                            MaterialStateProperty.all(Colors.white),
-                        overlayColor: MaterialStateProperty.all(
-                            const Color.fromARGB(20, 255, 255, 255))),
-                child: const Text('Move Clips to Gallery'),
-              )
-            ],
-          ),
-        ), 
-        /*
-        SwitchListTile(
-          onChanged: (_) {
-            toggleLocal();
-          },
-          visualDensity: VisualDensity.compact,
-          value: localServer != null,
-          activeColor: Theme.of(context).colorScheme.secondary,
-          title: const Text('Serve Clips on Web GUI'),
-          //subtitle: server != null
-          //    ? Text(
-          //        'Serving on ${ip != null ? 'http://$ip:${server?.port} (LAN)' : 'http://${server?.host}:${server?.port}'}')
-          //    : null,
-        ), */
-        SwitchListTile(
-          onChanged: (_) {
-            toggleWeb();
-          },
-          visualDensity: VisualDensity.compact,
-          value: server != null,
-          activeColor: Theme.of(context).colorScheme.secondary,
-          title: const Text('Upload Clips to Live.Peer'),
-          //subtitle: server != null
-          //    ? Text(
-          //        'Serving on ${ip != null ? 'http://$ip:${server?.port} (LAN)' : 'http://${server?.host}:${server?.port}'}')
-          //    : null,
-        ), 
+            ), 
+	      ),
+        Visibility(
+          visible: !browser,
+          child:
+            SwitchListTile(
+              onChanged: (_) {
+                toggleNFT();
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+              visualDensity: VisualDensity.compact,
+              value: createNFT != null,
+              activeColor: Theme.of(context).colorScheme.secondary,
+              title: const Text('Create NFT'),
+              subtitle: !metamaskInstalled 
+                  ? Text(
+                      'Metamask may not be installed')
+                  : null,
+            ), 
+        ),
+        Visibility(
+          visible: !browser,
+          child:
+            SwitchListTile(
+              onChanged: (_) {
+                toggleWeb();
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+              visualDensity: VisualDensity.compact,
+              value: server != null,
+              activeColor: Theme.of(context).colorScheme.secondary,
+              title: const Text('Upload to Live.Peer'),
+              subtitle: _currentURI == null
+                  ? Text(
+                    'No connection to b3.live',
+                    style: const TextStyle(color: Colors.red)) : null, 
+            ),
+        ),
         if (saving || moving)
           Container(
               decoration:
@@ -632,16 +664,25 @@ class _MyHomePageState extends State<MyHomePage> {
       ]),
       floatingActionButton: FloatingActionButton(
           child: Text(
-            "on/off",
+            browser ? "bcast" : "<< back",
             textAlign: TextAlign.center,
           ),
           onPressed: () {
             setState(() {
-	      if (!camState)
+              //if (metamaskInstalled)
+              //  launch("https://metamask.app.link/dapp/b3.live/",forceWebView: true); 
+              browser = !browser;
+              if (_currentURI == null && browser == false)
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const BarcodeScannerWithController(),
+                  ),
+                );
+	      /*if (!camState)
 		killCam();
               camState = !camState;
 	      if (!camState)
- 	        initCam();
+ 	        initCam(); */
             });
           }),
     );
@@ -669,20 +710,23 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> toggleLocal() async {
-    if (localServer == null) {
+  Future<void> toggleNFT() async {
+    ClipboardData? data = await Clipboard.getData("text/plain");
+    debugPrint("Clipboard $data");
+    if (createNFT == null) {
       try {
       //  ip = await NetworkInfo().getWifiIP();
-      //  localServer = await Dhttpd.start(
+      //  createNFT = await Dhttpd.start(
       //      path: saveDir.path, address: InternetAddress.anyIPv4);
-	localServer = "192.168.1.1";
+	      createNFT = "yes";
+        metamaskInstalled = await canLaunch("https://metamask.app.link");
         setState(() {});
       } catch (e) {
-        showInSnackBar('Error - try restarting the app');
-        await disableLocal();
+        showInSnackBar('Error - Can not determine if Metamask is installed');
+        await disableNFT();
       }
     } else {
-      await disableLocal();
+      await disableNFT();
     }
   }
 
@@ -694,11 +738,11 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> disableLocal() async {
-    //await localServer?.destroy();
+  Future<void> disableNFT() async {
+    //await createNFT?.destroy();
     setState(() {
-      localServer = null;
-      ip = null;
+      createNFT = null;
+      metamaskInstalled = false;
     });
   }
 
