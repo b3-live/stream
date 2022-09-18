@@ -99,7 +99,7 @@ class _BarcodeScannerWithControllerState
                           height: 50,
                           child: FittedBox(
                             child: Text(
-                              barcode ?? 'Scan something!',
+                              barcode ?? 'Scan b3.live QR!',
                               overflow: TextOverflow.fade,
                               style: Theme.of(context)
                                   .textTheme
@@ -130,6 +130,15 @@ class _BarcodeScannerWithControllerState
                       ),
                       IconButton(
                         color: Colors.white,
+                        icon: const Icon(Icons.arrow_circle_left),
+                        iconSize: 32.0,
+                        onPressed: () async {
+                          Navigator.pop(context, barcode);
+                        }
+                      ),
+                           /*
+                      IconButton(
+                        color: Colors.white,
                         icon: const Icon(Icons.image),
                         iconSize: 32.0,
                         onPressed: () async {
@@ -158,7 +167,7 @@ class _BarcodeScannerWithControllerState
                             }
                           }
                         },
-                      ),
+                      ), */
                     ],
                   ),
                 ),

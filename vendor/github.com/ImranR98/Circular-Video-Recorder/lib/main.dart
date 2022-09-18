@@ -663,21 +663,19 @@ class _MyHomePageState extends State<MyHomePage> {
         if (saving || moving) const LinearProgressIndicator(),
       ]),
       floatingActionButton: FloatingActionButton(
-          child: Text(
+          child: Icon(
+            browser ? Icons.add_circle : Icons.arrow_circle_left),
+          /*child: Text(
             browser ? "bcast" : "<< back",
             textAlign: TextAlign.center,
-          ),
+          ), */
           onPressed: () {
             setState(() {
               //if (metamaskInstalled)
               //  launch("https://metamask.app.link/dapp/b3.live/",forceWebView: true); 
               browser = !browser;
               if (_currentURI == null && browser == false)
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const BarcodeScannerWithController(),
-                  ),
-                );
+                _barCodeScanner(context);
 	      /*if (!camState)
 		killCam();
               camState = !camState;
@@ -686,6 +684,28 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           }),
     );
+  }
+
+  Future<void> _barCodeScanner(BuildContext context) async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const BarcodeScannerWithController(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result != null) {
+      setState(() {
+        _currentURI = Uri.parse(result);
+      });
+    }
+
+    // After the Selection Screen returns a result, hide any previous snackbars
+    // and show the new result.
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('$result')));
   }
 
   void showInSnackBar(String message) {
@@ -710,9 +730,10 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+
   Future<void> toggleNFT() async {
     ClipboardData? data = await Clipboard.getData("text/plain");
-    debugPrint("Clipboard $data");
+    debugPrint("Clipboard is ${data?.text}");
     if (createNFT == null) {
       try {
       //  ip = await NetworkInfo().getWifiIP();

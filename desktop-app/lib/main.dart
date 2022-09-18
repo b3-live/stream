@@ -68,11 +68,11 @@ class _MyHomePageState extends State<MyHomePage> {
   bool foundFile = false;
   Directory? directory;
   bool serverStarted = false;
-  String serverStatusMsg = "Server not started";
+  String serverStatusMsg = "Local server";
 
   Params config = Params();
 
-  void _incrementCounter() {
+  void startLocalServer() {
     getIp();
     _startWebServer();
     setState(() {
@@ -190,7 +190,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
+    // by the startLocalServer method above.
     //
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
@@ -220,6 +220,7 @@ class _MyHomePageState extends State<MyHomePage> {
             title: Text(serverStatusMsg),
             value: serverStarted,
             onChanged: (newValue) {
+	      startLocalServer();
               setState(() {
                 serverStatusMsg = "Server started";
               });
@@ -268,8 +269,8 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ]),
         floatingActionButton: FloatingActionButton(
-          onPressed: _incrementCounter,
-          tooltip: 'Increment',
+          onPressed: startLocalServer,
+          tooltip: 'Start Local Server',
           child: const Icon(Icons.not_started),
         ), // This trailing comma makes auto-formatting nicer for build methods.
       ), /*
