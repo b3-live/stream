@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class BarcodeScannerWithController extends StatefulWidget {
   const BarcodeScannerWithController({Key? key}) : super(key: key);
@@ -9,6 +10,7 @@ class BarcodeScannerWithController extends StatefulWidget {
   _BarcodeScannerWithControllerState createState() =>
       _BarcodeScannerWithControllerState();
 }
+
 
 class _BarcodeScannerWithControllerState
     extends State<BarcodeScannerWithController>
@@ -25,6 +27,7 @@ class _BarcodeScannerWithControllerState
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Builder(
@@ -40,6 +43,7 @@ class _BarcodeScannerWithControllerState
                 //   facing: CameraFacing.front,
                 // ),
                 onDetect: (barcode, args) {
+                  AudioPlayer().play(AssetSource('/audio/click.mp3'));
                   setState(() {
                     this.barcode = barcode.rawValue;
                   });

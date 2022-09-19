@@ -528,6 +528,12 @@ class _MyHomePageState extends State<MyHomePage> {
                           });
                         },
                         onLoadError: (controller, url, code, message) {
+                          debugPrint("Cant access site");
+                          pullToRefreshController.endRefreshing();
+                        },
+                        onLoadHttpError: (controller, url, code, message) {
+                          debugPrint("Cant access site");
+                          webViewController?.loadFile(assetFilePath: "assets/error.html");
                           pullToRefreshController.endRefreshing();
                         },
                         onProgressChanged: (controller, progress) {
