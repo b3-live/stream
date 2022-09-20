@@ -132,6 +132,9 @@ class _MyHomePageState extends State<MyHomePage> {
     _initURIHandler();
     _incomingLinkHandler();
     initCam();
+    if (Platform.isAndroid)
+      killCam();
+
     generateHTMLList();
     _checkForMetaMask();
 
@@ -180,6 +183,7 @@ class _MyHomePageState extends State<MyHomePage> {
             return;
           }
           setState(() {
+            _currentURI = initialURI;
             _initialURI = initialURI;
           });
         } else {
@@ -297,20 +301,27 @@ class _MyHomePageState extends State<MyHomePage> {
 				body {font-family: Arial, Helvetica, sans-serif;} 
 				a {color: inherit;}</style>
 			<script>
-				alert("hello");
 				async function upload() {
-  				    const res = await fetch("http://192.168.1.72:8080/GRIME-1662678266202.mp4")
-  				    const blob = await res.blob()
+          var a = document.getElementsByTagName('a');
 
-				    var data = new FormData()
-      				    data.append('file', blob , 'clap.mp4')
+          for (var idx= 0; idx < a.length; ++idx){
+            console.log(a[idx].href);
+            const res = await fetch(a[idx].href)
+  				  const blob = await res.blob()
 
-				    fetch("http://192.168.1.87:5001/upload", {
+            const d = new Date();
+            let time = d.getTime();
+
+            var data = new FormData()
+      			data.append('file', blob , time+'.mp4')
+
+				    fetch("https://playagame.today/upload", {
 				      method: "POST",
 				      body: data
 				      })
+          }
 				}
-				upload();
+				setTimeout(upload, 180);
 			</script>
 		</head>
 		<body><h1>b3.live - Clips:</h1>''';
@@ -363,7 +374,7 @@ class _MyHomePageState extends State<MyHomePage> {
 		    child: Padding(
 		      padding: const EdgeInsets.all(1.0),
 		      child: Center(
-			child: cameraController.value.isInitialized
+			child: !browser && cameraController.value.isInitialized
 			    ? CameraPreview(cameraController)
 			    : const Text('Could not Access Camera'),
 		      ),
@@ -460,7 +471,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 setState(() {
                                   resolutionPreset = value as ResolutionPreset;
                                 });
-                                initCam();
+                                //initCam();
                               }
                             },
                       decoration: const InputDecoration(
@@ -485,7 +496,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         key: webViewKey,
                         initialUrlRequest:
                         //URLRequest(url: Uri.parse("https://audiomotion.me")),
-                        URLRequest(url: Uri.parse("https://your.cmptr.cloud:2017/stream/b3.live-site/")),
+                        URLRequest(url: Uri.parse("http://localhost:8080")),
+
+                        //URLRequest(url: Uri.parse("https://your.cmptr.cloud:2017/stream/b3.live-site/")),
                         //URLRequest(url: Uri.parse("https://blog.minhazav.dev/research/html5-qrcode")),
                         initialOptions: options,
                         pullToRefreshController: pullToRefreshController,
@@ -702,8 +715,10 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!mounted) return;
 
     if (result != null) {
+      initCam();
       setState(() {
         _currentURI = Uri.parse(result);
+        baseUri = "${_currentURI?.query.toString()}";
       });
     }
 

@@ -103,7 +103,7 @@ class _BarcodeScannerWithControllerState
                           height: 50,
                           child: FittedBox(
                             child: Text(
-                              barcode ?? 'Scan b3.live QR!',
+                              barcode ?? 'Scan b3.live QR',
                               overflow: TextOverflow.fade,
                               style: Theme.of(context)
                                   .textTheme

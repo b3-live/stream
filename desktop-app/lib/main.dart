@@ -220,7 +220,7 @@ class _MyHomePageState extends State<MyHomePage> {
             title: Text(serverStatusMsg),
             value: serverStarted,
             onChanged: (newValue) {
-	      startLocalServer();
+	            startLocalServer();
               setState(() {
                 serverStatusMsg = "Server started";
               });
