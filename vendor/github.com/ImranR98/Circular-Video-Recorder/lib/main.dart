@@ -18,10 +18,19 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'barecode_scanner_controller.dart';
+import 'package:walletconnect_qrcode_modal_dart/walletconnect_qrcode_modal_dart.dart';
+
+import 'test_connector.dart';
+import 'wallet.dart';
+import 'algorand_test_connector.dart';
+import 'ethereum_test_connector.dart';
+
+import 'package:ssh2/ssh2.dart';
 
 late List<CameraDescription> _cameras;
 late Directory saveDir;
 bool _initialURILinkHandled = false;
+SSHClient? client;
 
 String? baseUri;
 
@@ -36,6 +45,14 @@ void main() async {
   saveDir = await getRecordingDir();
   runApp(const MyApp());
   SystemChrome.setEnabledSystemUIOverlays([]);
+}
+
+enum ConnectionState {
+  disconnected,
+  connecting,
+  connected,
+  connectionFailed,
+  connectionCancelled,
 }
 
 Future<Directory> getRecordingDir() async {
@@ -80,6 +97,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  TestConnector connector = EthereumTestConnector();
+
+  static const _networks = ['Ethereum (Ropsten)', 'Algorand (Testnet)'];
+
+  ConnectionState _state = ConnectionState.disconnected;
+  String? _networkName = _networks.first;
 // InAppWeb
   final GlobalKey webViewKey = GlobalKey();
   InAppWebViewController? webViewController;
@@ -127,6 +150,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
+    connector.registerListeners(
+      // connected
+      (session) => print('Connected: $session'),
+      // session updated
+      (response) => print('Session updated: $response'),
+      // disconnected
+      () {
+          setState(() => _state = ConnectionState.disconnected);
+          print('Disconnected');
+        });
     super.initState();
     KeepScreenOn.turnOn();
     _initURIHandler();
@@ -496,9 +529,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         key: webViewKey,
                         initialUrlRequest:
                         //URLRequest(url: Uri.parse("https://audiomotion.me")),
-                        URLRequest(url: Uri.parse("http://localhost:8080")),
+                        //URLRequest(url: Uri.parse("http://$ip:8080")),
 
-                        //URLRequest(url: Uri.parse("https://your.cmptr.cloud:2017/stream/b3.live-site/")),
+                        URLRequest(url: Uri.parse("https://your.cmptr.cloud:2017/stream/b3.live-site/")),
                         //URLRequest(url: Uri.parse("https://blog.minhazav.dev/research/html5-qrcode")),
                         initialOptions: options,
                         pullToRefreshController: pullToRefreshController,
@@ -624,11 +657,17 @@ class _MyHomePageState extends State<MyHomePage> {
                 overlayColor: MaterialStateProperty.all(
                     const Color.fromARGB(20, 255, 255, 255))),
               child: const Text('Backup to Gallery'),
-                  )
+                  ),
                 ],
               ),
             ), 
 	      ),
+        ElevatedButton(
+          onPressed: _transactionStateToAction(context, state: _state),
+            child: Text(
+              _transactionStateToString(state: _state),
+            ),
+        ),
         Visibility(
           visible: !browser,
           child:
@@ -640,7 +679,7 @@ class _MyHomePageState extends State<MyHomePage> {
               visualDensity: VisualDensity.compact,
               value: createNFT != null,
               activeColor: Theme.of(context).colorScheme.secondary,
-              title: const Text('Create NFT'),
+              title: const Text('Local LAN server'),
               subtitle: !metamaskInstalled 
                   ? Text(
                       'Metamask may not be installed')
@@ -703,6 +742,62 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           }),
     );
+  }
+
+ String _transactionStateToString({required ConnectionState state}) {
+    switch (state) {
+      case ConnectionState.disconnected:
+        return 'Connect your Wallet';
+      case ConnectionState.connecting:
+        return 'Connecting';
+      case ConnectionState.connected:
+        return 'Wallet connected';
+      case ConnectionState.connectionFailed:
+        return 'Wallet connection failed';
+      case ConnectionState.connectionCancelled:
+        return 'Wallet connection cancelled';
+    }
+  }
+
+  void _openWalletPage() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => WalletPage(connector: connector),
+      ),
+    );
+  }
+
+  VoidCallback? _transactionStateToAction(BuildContext context,
+      {required ConnectionState state}) {
+    print('State: ${_transactionStateToString(state: state)}');
+    switch (state) {
+      // Progress, action disabled
+      case ConnectionState.connecting:
+        return null;
+      case ConnectionState.connected:
+        // Open new page
+        return () => _openWalletPage();
+
+      // Initiate the connection
+      case ConnectionState.disconnected:
+      case ConnectionState.connectionCancelled:
+      case ConnectionState.connectionFailed:
+        return () async {
+          setState(() => _state = ConnectionState.connecting);
+          try {
+            final session = await connector.connect(context);
+            if (session != null) {
+              setState(() => _state = ConnectionState.connected);
+              Future.delayed(Duration.zero, () => _openWalletPage());
+            } else {
+              setState(() => _state = ConnectionState.connectionCancelled);
+            }
+          } catch (e) {
+            print('WC exception occured: $e');
+            setState(() => _state = ConnectionState.connectionFailed);
+          }
+        };
+    }
   }
 
   Future<void> _barCodeScanner(BuildContext context) async {
@@ -840,16 +935,20 @@ class _MyHomePageState extends State<MyHomePage> {
       String fileName = '${latestFileName()}';
       String filePath = '$appDocPath/${fileName}';
       ip = await NetworkInfo().getWifiIP();
+      //await onClickSFTP(appDocPath,fileName);
 
       // Once clip is saved, deleting cached copy and cleaning up old clips can be done asynchronously
       setState(() {
         saving = true;
       });
       tempFile.saveTo(filePath).then((_) {
-        final response =  http
-          .get(Uri.parse('$baseUri/download?http://$ip:8080/$fileName'));
+        if (baseUri != null)
+          final response =  http
+            .get(Uri.parse('$baseUri/download?http://$ip:8080/$fileName'));
 	// b3live://local?http://192.168.1.87:8000/download/?http://192.168.1.180:8080/GRIME-1663127048613.mp4
         debugPrint('BaseURI = $baseUri/download/?http://$ip:8080/$fileName');
+        onClickSFTP(appDocPath,fileName);
+
         File(tempFile.path).delete();
         generateHTMLList();
         setState(() {
@@ -879,6 +978,94 @@ class _MyHomePageState extends State<MyHomePage> {
     return ret;
   }
 
+  Future<void> onClickSFTP(String path, String fileName) async {
+    String result = '';
+    List array = [];
+
+    //resetValues();
+
+    var client = new SSHClient(
+      host: "dev.meetbeek.com",
+      port: 8022,
+      username: 'foo',
+      passwordOrKey: 'pass',
+    );
+    try {
+      result = await client.connect() ?? 'Null result';
+      if (result == "session_connected") {
+        debugPrint("SFTP session_connected");
+        result = await client.connectSFTP() ?? 'Null result';
+        if (result == "sftp_connected") {
+          debugPrint("SFTP sftp_connected");
+
+          array = await client.sftpLs() ?? [];
+
+          // Create a test directory
+          //print(await client.sftpMkdir("./testftp/tests_movie"));
+
+          // Rename the test directory
+          //print(await client.sftpRename(
+          //  oldPath: "testsftp",
+          //  newPath: "testsftprename",
+          //));
+
+          // Remove the renamed test directory
+          //print(await client.sftpRmdir("testsftprename"));
+
+          // Get local device temp directory
+          Directory tempDir = await getTemporaryDirectory();
+          String tempPath = tempDir.path;
+
+          // Create local test file
+          //final String fileName = 'ssh2_test_upload.txt';
+          final File file = File('$tempPath/$fileName');
+          await file.writeAsString('Testing file upload');
+
+          debugPrint('Local file path is ${file.path}');
+          debugPrint('Video video path ${path}');
+          debugPrint('Video clip filename is ${fileName}');
+
+          // Upload test file
+          debugPrint(await client.sftpUpload(
+            path: "${path}/${fileName}" /*file.path*/,
+            toPath: "./testftp/" /*"./testftp/"*/,
+            callback: (progress) async {
+              debugPrint("Progress ${progress}");
+              // if (progress == 30) await client.sftpCancelUpload();
+            },
+          ) ?? 'Upload failed');
+
+          // Download test file
+          print(await client.sftpDownload(
+            path: fileName,
+            toPath: tempPath,
+            callback: (progress) async {
+              print(progress);
+              // if (progress == 20) await client.sftpCancelDownload();
+            },
+          ) ?? 'Download failed');
+
+          // Delete the remote test file
+          print(await client.sftpRm(fileName));
+
+          // Delete the local test file
+          await file.delete();
+
+          // Disconnect from SFTP client - don't use
+          // There is a bug that prevents the ssh client connection from being
+          // closed after calling disconnectSFTP()
+          //print(await client.disconnectSFTP());
+
+          // Disconnect from SSH client
+          await client.disconnect();
+        }
+      }
+    } on PlatformException catch (e) {
+      String errorMessage = 'Error: ${e.code}\nError Message: ${e.message}';
+      result += errorMessage;
+      print(errorMessage);
+    }
+  }
   moveToGallery() async {
     List<FileSystemEntity> existingClips = await getExistingClips();
     if (existingClips.isEmpty) {
@@ -886,6 +1073,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } else if (saving) {
       showInSnackBar('A clip is still being saved - try again later');
     } else {
+      //await onClickSFTP();
       showDialog(
           context: context,
           builder: (BuildContext ctx) {
