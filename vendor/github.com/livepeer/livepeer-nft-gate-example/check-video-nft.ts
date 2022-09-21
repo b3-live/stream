@@ -105,6 +105,7 @@ type Webhook = {
 
 async function handleRequest(request: Request): Promise<Response> {
   if (request.method === "GET") {
+    console.log("Method: GET");
     // Print out the frontend if present
     return new Response(frontend, {
       headers: { "content-type": "text/html; charset=UTF-8" },
@@ -115,23 +116,31 @@ async function handleRequest(request: Request): Promise<Response> {
   // Extract parameters from query params
   const { searchParams } = new URL(request.url);
   for (const [key, value] of searchParams) {
+    console.log("get Param: " + key);
+    console.log("Value: " + value);
     gateParams[key] = value;
   }
 
   // Extract proof from webhook body
+  console.log("Extract proof from webhook body")
   const data = (await request.json()) as Webhook;
+  console.dir(data);
   const requestUrl: string = data?.payload?.requestUrl;
   if (!requestUrl) {
+    console.log("payload.url not found");
     return new Response("payload.url not found", { status: 413 });
   }
   const payloadUrl = new URL(requestUrl);
+  console.log("getting proof");
   const proof = payloadUrl.searchParams.get("proof");
+  console.log("got proof " + proof);
   if (!proof) {
     return new Response("`proof` query parameter missing from payload url");
   }
   gateParams.proof = proof;
 
   try {
+    console.log("get balance");
     const balance = await getResponse(gateParams);
     if (balance.gt(0)) {
       return new Response("ok", { status: 200 });
@@ -141,6 +150,8 @@ async function handleRequest(request: Request): Promise<Response> {
       });
     }
   } catch (e: any) {
+    console.log("got an error");
+    console.dir(e);
     return new Response(e.message, { status: 500 });
   }
 }

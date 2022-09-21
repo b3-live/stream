@@ -51,7 +51,7 @@ const App = () => {
         Token Contract Address:
         <input
           value={gate.contract}
-          onChange={(e) => setGate({ ...gate, contract: e.target.value })}
+          onChange={(e) => setGate({ ...gate, contract: "0xd2e970718Aa32f2db4Bf94AafC22fDF866C3ff01" /*e.target.value*/ })}
         ></input>
       </div>
       <div>
@@ -102,15 +102,20 @@ const App = () => {
       <button
         onClick={async () => {
           try {
+	    console.log("Get provider");
             setErrorText("");
             const provider = new ethers.providers.Web3Provider(
               window.ethereum,
               "any"
             );
             // Prompt user for account connections
+	    console.log("requests accounts");
             await provider.send("eth_requestAccounts", []);
+	    console.log("provider.getSigner");
             const signer = provider.getSigner();
+	    console.log("signer.signMessage");
             const signed = await signer.signMessage(gate.message);
+	    console.log("Fetch the asset " + `https://example.com/hls/fake-stream.m3u8?streamId=fake-stream&proof=${encodeURIComponent(signed)}`);
             const res = await fetch(window.location.href, {
               method: "POST",
               body: JSON.stringify({
