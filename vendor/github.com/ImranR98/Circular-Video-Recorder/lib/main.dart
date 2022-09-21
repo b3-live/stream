@@ -527,6 +527,7 @@ class _MyHomePageState extends State<MyHomePage> {
               //height: 1080 /* 280.0 */,
               child: InAppWebView(
                         key: webViewKey,
+                        //initialFile: "assets/start.html",
                         initialUrlRequest:
                         //URLRequest(url: Uri.parse("https://audiomotion.me")),
                         //URLRequest(url: Uri.parse("http://$ip:8080")),
@@ -679,7 +680,7 @@ class _MyHomePageState extends State<MyHomePage> {
               visualDensity: VisualDensity.compact,
               value: createNFT != null,
               activeColor: Theme.of(context).colorScheme.secondary,
-              title: const Text('Local LAN server'),
+              title: const Text('Use Control Center'),
               subtitle: !metamaskInstalled 
                   ? Text(
                       'Metamask may not be installed')
