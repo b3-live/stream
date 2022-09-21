@@ -10,6 +10,8 @@
 .svn/
 migrate_working_dir/
 
+desktop-app/videos
+
 # IntelliJ related
 *.iml
 *.ipr
@@ -47,3 +49,7 @@ vendor/github.com/ImranR98/Circular-Video-Recorder/ios/Podfile
 **/Debug.xcconfig
 **/Release.xcconfig
 **/pubspec.lock
+
+desktop-app/build
+**.env
+**env/

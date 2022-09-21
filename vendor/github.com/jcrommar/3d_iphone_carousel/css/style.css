@@ -1,0 +1,39 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+    flex-direction: column;
+}
+.carousel
+{
+    position: relative;
+    height: 600px;
+    margin-top: 30px;
+    perspective: 1500px;
+}
+.carousel .carousel-item
+{
+    width: 250px;
+}
+.carousel .carousel-item img
+{
+    height: 300px;
+    max-width: 170px;
+    transform: translateX(15px) translateY(-90px);
+}
+.mobile
+{
+    width: 257px;
+    height: 349px;
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000,
+}

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-
+import 'package:qr_mobile_vision/qr_camera.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,15 +9,33 @@ import 'package:path_provider/path_provider.dart';
 import 'package:keep_screen_on/keep_screen_on.dart';
 import 'package:dhttpd/dhttpd.dart';
 import 'package:gallery_saver/gallery_saver.dart';
+import 'package:uni_links/uni_links.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:http/http.dart' as http;
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'barecode_scanner_controller.dart';
 
 late List<CameraDescription> _cameras;
 late Directory saveDir;
+bool _initialURILinkHandled = false;
+
+String? baseUri;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Permission.camera.request();
+  await Permission.microphone.request();
+  if (Platform.isAndroid) {
+    await AndroidInAppWebViewController.setWebContentsDebuggingEnabled(true);
+  }
   _cameras = await availableCameras();
   saveDir = await getRecordingDir();
   runApp(const MyApp());
+  SystemChrome.setEnabledSystemUIOverlays([]);
 }
 
 Future<Directory> getRecordingDir() async {
@@ -40,14 +58,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Circular Video Recorder',
+      title: 'b3.live',
       theme: ThemeData(
           colorScheme: const ColorScheme.light(
-              primary: Colors.red, secondary: Colors.amber)),
+              primary: Colors.black, secondary: Colors.amber)),
       darkTheme: ThemeData(
           colorScheme: const ColorScheme.dark(
               primary: Colors.redAccent, secondary: Colors.amberAccent)),
-      home: const MyHomePage(title: 'Circular Video Recorder'),
+      home: const MyHomePage(title: 'b3.live'),
     );
   }
 }
@@ -62,28 +80,188 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+// InAppWeb
+  final GlobalKey webViewKey = GlobalKey();
+  InAppWebViewController? webViewController;
+  InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
+      crossPlatform: InAppWebViewOptions(
+        useShouldOverrideUrlLoading: true,
+        mediaPlaybackRequiresUserGesture: false,
+      ),
+      android: AndroidInAppWebViewOptions(
+        useHybridComposition: true,
+      ),
+      ios: IOSInAppWebViewOptions(
+        allowsInlineMediaPlayback: true,
+      ));
+
+  late PullToRefreshController pullToRefreshController;
+  String url = "";
+  double progress = 0;
+  final urlController = TextEditingController();
+
+// InAppWeb
   late CameraController cameraController;
-  int recordMins = 0;
-  int recordCount = -1;
+  //int recordMins = 0;
+  //int recordCount = -1;
+  Uri? _initialURI;
+  Uri? _currentURI;
+  Object? _err;
+
+  StreamSubscription? _streamSubscription;
+
+  String? qr;
+  bool camState = false;
+  bool dirState = false;
+  int recordMins = 1;
+  int recordCount = 30;
   ResolutionPreset resolutionPreset = ResolutionPreset.medium;
   DateTime currentClipStart = DateTime.now();
   String? ip;
   Dhttpd? server;
+  String? createNFT;
   bool saving = false;
   bool moving = false;
+  bool browser = true;
+  bool metamaskInstalled = false;
 
   @override
   void initState() {
     super.initState();
     KeepScreenOn.turnOn();
+    _initURIHandler();
+    _incomingLinkHandler();
     initCam();
+    if (Platform.isAndroid)
+      killCam();
+
     generateHTMLList();
+    _checkForMetaMask();
+
+// InApp
+    pullToRefreshController = PullToRefreshController(
+      options: PullToRefreshOptions(
+        color: Colors.blue,
+      ),
+      onRefresh: () async {
+        if (Platform.isAndroid) {
+          webViewController?.reload();
+        } else if (Platform.isIOS) {
+          webViewController?.loadUrl(
+              urlRequest: URLRequest(url: await webViewController?.getUrl()));
+        }
+      },
+    );
+// InApp
+
   }
+
+  Future<void> _checkForMetaMask() async {
+    metamaskInstalled = await canLaunch("https://metamask.app.link");
+  }
+  
+  Future<void> _initURIHandler() async {
+    if (!_initialURILinkHandled) {
+      _initialURILinkHandled = true;
+      Fluttertoast.showToast(
+          msg: "Starting camera, one moment",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.green,
+          textColor: Colors.white
+      );
+      try {
+        final initialURI = await getInitialUri();
+        // Use the initialURI and warn the user if it is not correct,
+        // but keep in mind it could be `null`.
+        if (initialURI != null) {
+          baseUri = "${initialURI?.query.toString()}";
+          debugPrint("initialURI: base URI received $baseUri");
+          debugPrint("Initial URI received $initialURI");
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _currentURI = initialURI;
+            _initialURI = initialURI;
+          });
+        } else {
+          debugPrint("Null Initial URI received");
+        }
+      } on PlatformException {
+        // Platform messages may fail, so we use a try/catch PlatformException.
+        // Handle exception by warning the user their action did not succeed
+        debugPrint("Failed to receive initial uri");
+      } on FormatException catch (err) {
+        if (!mounted) {
+          return;
+        }
+        debugPrint('Malformed Initial URI received');
+        setState(() => _err = err);
+      }
+    }
+  }
+
+  /// Handle incoming links - the ones that the app will receive from the OS
+  /// while already started.
+  void _incomingLinkHandler() {
+    // It will handle app links while the app is already started - be it in
+    // the foreground or in the background.
+    _streamSubscription = uriLinkStream.listen((Uri? uri) {
+       if (!mounted) {
+         return;
+       }
+       debugPrint('Received URI: $uri');
+       baseUri = "${uri?.query.toString()}";
+       debugPrint("_incomingLinkHandler: base URI received $uri");
+       setState(() {
+         _currentURI = uri;
+         _err = null;
+       });
+     }, onError: (Object err) {
+       if (!mounted) {
+         return;
+       }
+       debugPrint('Error occurred: $err');
+       setState(() {
+         _currentURI = null;
+         if (err is FormatException) {
+           _err = err;
+         } else {
+           _err = null;
+         }
+       });
+     });
+  }
+
 
   Future<void> initCam() async {
     cameraController = CameraController(_cameras[0], resolutionPreset);
     try {
       await cameraController.initialize();
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    } catch (e) {
+      if (e is CameraException) {
+        switch (e.code) {
+          case 'CameraAccessDenied':
+            showInSnackBar('User denied camera access');
+            break;
+          default:
+            showInSnackBar('Unknown error');
+            break;
+        }
+      }
+    }
+  }
+
+  Future<void> killCam() async {
+    cameraController = CameraController(_cameras[0], resolutionPreset);
+    try {
+      await cameraController.dispose();
       if (!mounted) {
         return;
       }
@@ -112,7 +290,42 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> generateHTMLList() async {
     List<FileSystemEntity> existingClips = await getExistingClips();
     String html =
-        '<!DOCTYPE html><html lang="en"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Circular Video Recorder - Clips</title><style>@media (prefers-color-scheme: dark) {html {background-color: #222222; color: white;}} body {font-family: Arial, Helvetica, sans-serif;} a {color: inherit;}</style></head><body><h1>Circular Video Recorder - Clips:</h1>';
+        '''<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta http-equiv="content-type" content="text/html; charset=utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>b3.live - Clips</title>
+			<style>
+				@media (prefers-color-scheme: dark) {html {background-color: #222222; color: white;}} 
+				body {font-family: Arial, Helvetica, sans-serif;} 
+				a {color: inherit;}</style>
+			<script>
+				async function upload() {
+          var a = document.getElementsByTagName('a');
+
+          for (var idx= 0; idx < a.length; ++idx){
+            console.log(a[idx].href);
+            const res = await fetch(a[idx].href)
+  				  const blob = await res.blob()
+
+            const d = new Date();
+            let time = d.getTime();
+
+            var data = new FormData()
+      			data.append('file', blob , time+'.mp4')
+
+				    fetch("https://playagame.today/upload", {
+				      method: "POST",
+				      body: data
+				      })
+          }
+				}
+				setTimeout(upload, 180);
+			</script>
+		</head>
+		<body><h1>b3.live - Clips:</h1>''';
+
     if (existingClips.isNotEmpty) {
       html += '<ul>';
       for (var element in existingClips) {
@@ -130,41 +343,45 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
+      //appBar: AppBar(
+     //  title: Text(widget.title),
+     // ),
       body: Column(children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.black,
-              border: Border(
-                  left: BorderSide(
-                      color: cameraController.value.isRecordingVideo
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.black,
-                      width: 5),
-                  right: BorderSide(
-                      color: cameraController.value.isRecordingVideo
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.black,
-                      width: 5),
-                  top: BorderSide(
-                      color: cameraController.value.isRecordingVideo
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.black,
-                      width: 5)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(1.0),
-              child: Center(
-                child: cameraController.value.isInitialized
-                    ? CameraPreview(cameraController)
-                    : const Text('Could not Access Camera'),
-              ),
-            ),
-          ),
-        ),
+        Visibility(
+          visible: !browser,
+	  child:
+		Expanded(
+		  child: Container(
+		    decoration: BoxDecoration(
+		      color: Colors.black,
+		      border: Border(
+			  left: BorderSide(
+			      color: cameraController.value.isRecordingVideo
+				  ? Theme.of(context).colorScheme.primary
+				  : Colors.black,
+			      width: 5),
+			  right: BorderSide(
+			      color: cameraController.value.isRecordingVideo
+				  ? Theme.of(context).colorScheme.primary
+				  : Colors.black,
+			      width: 5),
+			  top: BorderSide(
+			      color: cameraController.value.isRecordingVideo
+				  ? Theme.of(context).colorScheme.primary
+				  : Colors.black,
+			      width: 5)),
+		    ),
+		    child: Padding(
+		      padding: const EdgeInsets.all(1.0),
+		      child: Center(
+			child: !browser && cameraController.value.isInitialized
+			    ? CameraPreview(cameraController)
+			    : const Text('Could not Access Camera'),
+		      ),
+		    ),
+		  ),
+		),
+	),
         Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Container(
             decoration: BoxDecoration(
@@ -178,16 +395,17 @@ class _MyHomePageState extends State<MyHomePage> {
                 width: cameraController.value.isRecordingVideo ? 5 : 2.5,
               ),
             ),
-            child: cameraController.value.isRecordingVideo
-                ? Text(
-                    'Current clip started at ${currentClipStart.hour <= 9 ? '0${currentClipStart.hour}' : currentClipStart.hour}:${currentClipStart.minute <= 9 ? '0${currentClipStart.minute}' : currentClipStart.minute}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.white))
-                : null,
+
+//            child: cameraController.value.isRecordingVideo && false
+ //               ? Text(
+//                    'Current clip started at ${currentClipStart.hour <= 9 ? '0${currentClipStart.hour}' : currentClipStart.hour}:${currentClipStart.minute <= 9 ? '0${currentClipStart.minute}' : currentClipStart.minute}',
+//                    textAlign: TextAlign.center,
+//                    style: const TextStyle(
+//                        fontWeight: FontWeight.bold, color: Colors.white))
+//                : null,
           ),
         ]),
-        if (cameraController.value.isRecordingVideo)
+        if (cameraController.value.isRecordingVideo && false)
           Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Container(
               padding: const EdgeInsets.fromLTRB(5, 0, 5, 5),
@@ -200,8 +418,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       const TextStyle(letterSpacing: 1, color: Colors.white)),
             ),
           ]),
-        Padding(
-          padding: const EdgeInsets.all(10.0),
+        Visibility(
+          visible: false,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
@@ -209,7 +427,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: TextField(
                 onChanged: (value) {
                   setState(() {
-                    recordMins = value.trim() == '' ? 0 : int.parse(value);
+                    //recordMins = value.trim() == '' ? 0 : int.parse(value);
+                    recordMins = value.trim() == '' ? 1 : int.parse(value);
                   });
                 },
                 enabled: !cameraController.value.isRecordingVideo,
@@ -226,7 +445,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       onChanged: (value) {
                         setState(() {
                           recordCount =
-                              value.trim() == '' ? -1 : int.parse(value);
+                              //value.trim() == '' ? -1 : int.parse(value);
+                              value.trim() == '' ? 30 : int.parse(value);
                         });
                       },
                       enabled: !cameraController.value.isRecordingVideo,
@@ -251,7 +471,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 setState(() {
                                   resolutionPreset = value as ResolutionPreset;
                                 });
-                                initCam();
+                                //initCam();
                               }
                             },
                       decoration: const InputDecoration(
@@ -261,59 +481,189 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(5.0, 0, 5, 0),
+        Visibility(
+          visible: false,
           child: Text(getStatusText(),
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(5, 0, 5, 0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: ElevatedButton(
-                    onPressed: cameraController.value.isRecordingVideo
-                        ? () => stopRecording(false)
-                        : recordMins > 0 && recordCount >= 0
-                            ? recordRecursively
-                            : null,
-                    child: Text(cameraController.value.isRecordingVideo
-                        ? 'Stop Recording'
-                        : 'Start Recording')),
-              ),
-              const SizedBox(width: 5),
-              OutlinedButton(
-                onPressed: moveToGallery,
-                style: Theme.of(context).brightness == Brightness.light
-                    ? ButtonStyle(
-                        foregroundColor:
-                            MaterialStateProperty.all(Colors.black),
-                        overlayColor: MaterialStateProperty.all(
-                            const Color.fromARGB(20, 0, 0, 0)))
-                    : ButtonStyle(
-                        foregroundColor:
-                            MaterialStateProperty.all(Colors.white),
-                        overlayColor: MaterialStateProperty.all(
-                            const Color.fromARGB(20, 255, 255, 255))),
-                child: const Text('Move Clips to Gallery'),
-              )
-            ],
-          ),
+        Visibility(
+          visible: browser,
+          child: Expanded /*SizedBox*/(
+              //width: 640.0,
+              //height: 1080 /* 280.0 */,
+              child: InAppWebView(
+                        key: webViewKey,
+                        initialUrlRequest:
+                        //URLRequest(url: Uri.parse("https://audiomotion.me")),
+                        URLRequest(url: Uri.parse("http://localhost:8080")),
+
+                        //URLRequest(url: Uri.parse("https://your.cmptr.cloud:2017/stream/b3.live-site/")),
+                        //URLRequest(url: Uri.parse("https://blog.minhazav.dev/research/html5-qrcode")),
+                        initialOptions: options,
+                        pullToRefreshController: pullToRefreshController,
+                        onWebViewCreated: (controller) {
+                          webViewController = controller;
+                        },
+                        onLoadStart: (controller, url) {
+                          setState(() {
+                            this.url = url.toString();
+                            urlController.text = this.url;
+                          });
+                        },
+                        androidOnPermissionRequest: (controller, origin, resources) async {
+                          return PermissionRequestResponse(
+                              resources: resources,
+                              action: PermissionRequestResponseAction.GRANT);
+                        },
+                        shouldOverrideUrlLoading: (controller, navigationAction) async {
+                          var uri = navigationAction.request.url!;
+
+                          if (![ "http", "https", "file", "chrome",
+                            "data", "javascript", "about"].contains(uri.scheme)) {
+                            if (await canLaunch(url)) {
+                              // Launch the App
+                              await launch(
+                                url,
+                              );
+                              // and cancel the request
+                              return NavigationActionPolicy.CANCEL;
+                            }
+                          }
+
+                          return NavigationActionPolicy.ALLOW;
+                        },
+                        onLoadStop: (controller, url) async {
+                          pullToRefreshController.endRefreshing();
+                          setState(() {
+                            this.url = url.toString();
+                            urlController.text = this.url;
+                          });
+                        },
+                        onLoadError: (controller, url, code, message) {
+                          debugPrint("Cant access site");
+                          pullToRefreshController.endRefreshing();
+                        },
+                        onLoadHttpError: (controller, url, code, message) {
+                          debugPrint("Cant access site");
+                          webViewController?.loadFile(assetFilePath: "assets/error.html");
+                          pullToRefreshController.endRefreshing();
+                        },
+                        onProgressChanged: (controller, progress) {
+                          if (progress == 100) {
+                            pullToRefreshController.endRefreshing();
+                          }
+                          setState(() {
+                            this.progress = progress / 100;
+                            urlController.text = this.url;
+                          });
+                        },
+                        onUpdateVisitedHistory: (controller, url, androidIsReload) {
+                          setState(() {
+                            this.url = url.toString();
+                            urlController.text = this.url;
+                          });
+                        },
+                        onConsoleMessage: (controller, consoleMessage) {
+                          print(consoleMessage);
+                        },
+                      ),
+/*              child: InAppWebView(
+                      initialUrl: "https://audiomotion.me",
+                      initialOptions: InAppWebViewGroupOptions(
+                        crossPlatform: InAppWebViewOptions(
+                          mediaPlaybackRequiresUserGesture: false,
+                          //debuggingEnabled: true,
+                        ),
+                      ),
+                      onWebViewCreated: (InAppWebViewController controller) {
+                        _webViewController = controller;
+                      },
+                      androidOnPermissionRequest: (InAppWebViewController controller, String origin, List<String> resources) async {
+                        return PermissionRequestResponse(resources: resources, action: PermissionRequestResponseAction.GRANT);
+                      }
+                  ),
+*/
+              //child: const WebView(
+              //        initialUrl: 'https://audiomotion.me',
+               //       javascriptMode: JavascriptMode.unrestricted,
+	        //  ),
+          ), 
         ),
-        SwitchListTile(
-          onChanged: (_) {
-            toggleWeb();
-          },
-          visualDensity: VisualDensity.compact,
-          value: server != null,
-          activeColor: Theme.of(context).colorScheme.secondary,
-          title: const Text('Serve Clips on Web GUI'),
-          subtitle: server != null
-              ? Text(
-                  'Serving on ${ip != null ? 'http://$ip:${server?.port} (LAN)' : 'http://${server?.host}:${server?.port}'}')
-              : null,
+        Visibility(
+          visible: !browser,
+          child:
+            Padding(
+              padding: const EdgeInsets.fromLTRB(5, 0, 5, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+              child: ElevatedButton(
+                  onPressed: cameraController.value.isRecordingVideo
+                ? () => stopRecording(false)
+                : recordMins > 0 && recordCount >= 0
+                    ? recordRecursively
+                    : null,
+                  child: Text(cameraController.value.isRecordingVideo
+                ? 'Stop Recording'
+                : 'Start Recording')),
+                  ),
+                  const SizedBox(width: 5),
+                  OutlinedButton(
+              onPressed: moveToGallery,
+              style: Theme.of(context).brightness == Brightness.light
+                  ? ButtonStyle(
+                foregroundColor:
+                    MaterialStateProperty.all(Colors.black),
+                overlayColor: MaterialStateProperty.all(
+                    const Color.fromARGB(20, 0, 0, 0)))
+                  : ButtonStyle(
+                foregroundColor:
+                    MaterialStateProperty.all(Colors.white),
+                overlayColor: MaterialStateProperty.all(
+                    const Color.fromARGB(20, 255, 255, 255))),
+              child: const Text('Backup to Gallery'),
+                  )
+                ],
+              ),
+            ), 
+	      ),
+        Visibility(
+          visible: !browser,
+          child:
+            SwitchListTile(
+              onChanged: (_) {
+                toggleNFT();
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+              visualDensity: VisualDensity.compact,
+              value: createNFT != null,
+              activeColor: Theme.of(context).colorScheme.secondary,
+              title: const Text('Create NFT'),
+              subtitle: !metamaskInstalled 
+                  ? Text(
+                      'Metamask may not be installed')
+                  : null,
+            ), 
+        ),
+        Visibility(
+          visible: !browser,
+          child:
+            SwitchListTile(
+              onChanged: (_) {
+                toggleWeb();
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+              visualDensity: VisualDensity.compact,
+              value: server != null,
+              activeColor: Theme.of(context).colorScheme.secondary,
+              title: const Text('Upload to Live.Peer'),
+              subtitle: _currentURI == null
+                  ? Text(
+                    'No connection to b3.live',
+                    style: const TextStyle(color: Colors.red)) : null, 
+            ),
         ),
         if (saving || moving)
           Container(
@@ -331,7 +681,52 @@ class _MyHomePageState extends State<MyHomePage> {
               )),
         if (saving || moving) const LinearProgressIndicator(),
       ]),
+      floatingActionButton: FloatingActionButton(
+          child: Icon(
+            browser ? Icons.add_circle : Icons.arrow_circle_left),
+          /*child: Text(
+            browser ? "bcast" : "<< back",
+            textAlign: TextAlign.center,
+          ), */
+          onPressed: () {
+            setState(() {
+              //if (metamaskInstalled)
+              //  launch("https://metamask.app.link/dapp/b3.live/",forceWebView: true); 
+              browser = !browser;
+              if (_currentURI == null && browser == false)
+                _barCodeScanner(context);
+	      /*if (!camState)
+		killCam();
+              camState = !camState;
+	      if (!camState)
+ 	        initCam(); */
+            });
+          }),
     );
+  }
+
+  Future<void> _barCodeScanner(BuildContext context) async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const BarcodeScannerWithController(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result != null) {
+      initCam();
+      setState(() {
+        _currentURI = Uri.parse(result);
+        baseUri = "${_currentURI?.query.toString()}";
+      });
+    }
+
+    // After the Selection Screen returns a result, hide any previous snackbars
+    // and show the new result.
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('$result')));
   }
 
   void showInSnackBar(String message) {
@@ -356,11 +751,40 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+
+  Future<void> toggleNFT() async {
+    ClipboardData? data = await Clipboard.getData("text/plain");
+    debugPrint("Clipboard is ${data?.text}");
+    if (createNFT == null) {
+      try {
+      //  ip = await NetworkInfo().getWifiIP();
+      //  createNFT = await Dhttpd.start(
+      //      path: saveDir.path, address: InternetAddress.anyIPv4);
+	      createNFT = "yes";
+        metamaskInstalled = await canLaunch("https://metamask.app.link");
+        setState(() {});
+      } catch (e) {
+        showInSnackBar('Error - Can not determine if Metamask is installed');
+        await disableNFT();
+      }
+    } else {
+      await disableNFT();
+    }
+  }
+
   Future<void> disableWeb() async {
     await server?.destroy();
     setState(() {
       server = null;
       ip = null;
+    });
+  }
+
+  Future<void> disableNFT() async {
+    //await createNFT?.destroy();
+    setState(() {
+      createNFT = null;
+      metamaskInstalled = false;
     });
   }
 
@@ -405,7 +829,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   String latestFileName() {
-    return 'CVR-${currentClipStart.millisecondsSinceEpoch.toString()}.mp4';
+    return 'GRIME-${currentClipStart.millisecondsSinceEpoch.toString()}.mp4';
   }
 
   Future<void> stopRecording(bool cleanup) async {
@@ -413,12 +837,19 @@ class _MyHomePageState extends State<MyHomePage> {
       XFile tempFile = await cameraController.stopVideoRecording();
       setState(() {});
       String appDocPath = saveDir.path;
-      String filePath = '$appDocPath/${latestFileName()}';
+      String fileName = '${latestFileName()}';
+      String filePath = '$appDocPath/${fileName}';
+      ip = await NetworkInfo().getWifiIP();
+
       // Once clip is saved, deleting cached copy and cleaning up old clips can be done asynchronously
       setState(() {
         saving = true;
       });
       tempFile.saveTo(filePath).then((_) {
+        final response =  http
+          .get(Uri.parse('$baseUri/download?http://$ip:8080/$fileName'));
+	// b3live://local?http://192.168.1.87:8000/download/?http://192.168.1.180:8080/GRIME-1663127048613.mp4
+        debugPrint('BaseURI = $baseUri/download/?http://$ip:8080/$fileName');
         File(tempFile.path).delete();
         generateHTMLList();
         setState(() {
@@ -472,7 +903,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       Navigator.of(context).pop();
                       for (var eC in existingClips) {
                         await GallerySaver.saveVideo(eC.path,
-                            albumName: 'Circular Video Recorder');
+                            albumName: 'b3.live');
                       }
                       await Future.wait(existingClips.map((eC) => eC.delete()));
                       generateHTMLList();
@@ -498,6 +929,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void dispose() {
     cameraController.dispose();
     KeepScreenOn.turnOff();
+    _streamSubscription?.cancel();
     super.dispose();
   }
 }
