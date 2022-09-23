@@ -664,12 +664,16 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ), 
 	      ),
-        ElevatedButton(
-          onPressed: _transactionStateToAction(context, state: _state),
-            child: Text(
-              _transactionStateToString(state: _state),
-            ),
-        ),
+        Visibility(
+          visible: browser &&
+             _transactionStateToString(state: _state) != "Wallet connected",
+          child:
+          ElevatedButton(
+            onPressed: _transactionStateToAction(context, state: _state),
+              child: Text(
+                _transactionStateToString(state: _state),
+              ),
+          ),),
         Visibility(
           visible: !browser,
           child:
@@ -758,8 +762,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 //if (metamaskInstalled)
                //  launch("https://metamask.app.link/dapp/b3.live/",forceWebView: true); 
                browser = !browser;
-               if (_currentURI == null && browser == false)
-                 _barCodeScanner(context);
+               //if (_currentURI == null && browser == false)
+                // _barCodeScanner(context);
                /*if (!camState)
                killCam();
                camState = !camState;
