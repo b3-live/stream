@@ -285,7 +285,7 @@ class _WalletPageState extends State<WalletPage> {
                   visible: termsOfService,
                   child: SizedBox (
                       width: 640.0,
-                      height: 400.0,
+                      height: 300.0,
                       child: InAppWebView(
                         //initialUrlRequest: URLRequest(url: Uri.parse("https://metamask.app.link/dapp/www.430.studio/")),
                         //initialUrlRequest: URLRequest(url: Uri.parse("https://www.430.studio/")),
