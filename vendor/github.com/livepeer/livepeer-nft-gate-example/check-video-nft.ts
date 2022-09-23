@@ -7,7 +7,7 @@ const frontend = fs.readFileSync(__dirname + "/dist/index.html", "utf8");
 
 const ERC721 = "erc721";
 const ERC1155 = "erc1155";
-const SIGN_STRING = "I have the NFT! Give me access.";
+const SIGN_STRING = "I have a Lens profile. Give me access.";
 
 const chainList = require("./chains");
 type Chains = {
