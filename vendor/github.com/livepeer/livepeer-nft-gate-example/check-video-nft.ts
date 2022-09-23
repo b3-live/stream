@@ -161,7 +161,8 @@ async function handleRequest(request: Request): Promise<Response> {
     console.log("get balance");
     const balance = await getResponse(gateParams);
     if (balance.gt(0)) {
-      return new Response("https://www.ibm/com", { status: 302 });
+      console.log("balance is greater than 0");
+      return new Response("Success", { status: 302 });
       //return new Response("ok", { status: 200 });
     } else {
       return new Response(`You do not have a Lens profile, please visit https://lens.xyz`, {
