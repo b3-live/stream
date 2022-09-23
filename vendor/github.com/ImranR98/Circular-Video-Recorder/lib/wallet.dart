@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'dart:io';
 import 'test_connector.dart';
 
 enum TransactionState {
@@ -24,6 +25,21 @@ class WalletPage extends StatefulWidget {
 }
 
 class _WalletPageState extends State<WalletPage> {
+  bool termsOfService = false;
+  final GlobalKey webViewKey = GlobalKey();
+  InAppWebViewController? webViewController;
+  InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
+      crossPlatform: InAppWebViewOptions(
+        useShouldOverrideUrlLoading: true,
+        mediaPlaybackRequiresUserGesture: false,
+      ),
+      android: AndroidInAppWebViewOptions(
+        useHybridComposition: true,
+      ),
+      ios: IOSInAppWebViewOptions(
+        allowsInlineMediaPlayback: true,
+      ));
+
   late Future<double> balanceFuture = widget.connector.getBalance();
   final addressController = TextEditingController();
   final amountController = TextEditingController();
@@ -55,14 +71,31 @@ class _WalletPageState extends State<WalletPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Text(
-                    'Address',
-                    style: Theme.of(context).textTheme.headline5,
+                Visibility(
+                  visible: !termsOfService,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Text(
+                      'Create a b3.live account',
+                      style: Theme.of(context).textTheme.headline5,
+                    ),
                   ),
                 ),
-                Text(widget.connector.address),
+                Visibility(
+                  visible: !termsOfService,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Text(
+                      'Address',
+                      style: Theme.of(context).textTheme.headline5,
+                    ),
+                  ),
+                ),
+                Visibility(
+                  visible: !termsOfService,
+                  child: Text(widget.connector.address),
+                ),
+                 /*
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
                   child: Text(
@@ -126,7 +159,67 @@ class _WalletPageState extends State<WalletPage> {
                       errorText: validateAddress ? null : 'Invalid address',
                     ),
                   ),
+                ), */
+                Visibility(
+                  visible: !termsOfService,
+                  child: Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: TextField(
+                    controller: addressController,
+                    keyboardType: TextInputType.text,
+                    autocorrect: false,
+                    enableSuggestions: true,
+                    decoration: InputDecoration(
+                      labelText: 'User name',
+                      /* errorText: validateAddress ? null : 'Invalid username', */
+                    ),
+                  ),
                 ),
+                ),
+                Visibility(
+                  visible: !termsOfService,
+                  child: Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: TextField(
+                    controller: amountController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Pin Number',
+                      errorText: validateAmount
+                          ? null
+                          : 'Please enter a four digit pin number',
+                    ),
+                  ),
+                ),
+                ),
+                Visibility(
+                  visible: !termsOfService,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: RichText(
+                      text: const TextSpan(
+                        text: "To upload video, in addition to a b3.live acccount you will also need a ",
+                        style: TextStyle(color: Colors.redAccent),
+                        children: <TextSpan>[
+                          TextSpan(
+                            text: 'Lens',
+                            style: TextStyle(
+                              color: Colors.black,
+                              backgroundColor:  Colors.green,
+                              decoration: TextDecoration.underline,
+                              decorationColor: const Color(0x9EFF22),
+                              decorationStyle: TextDecorationStyle.wavy,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' profile',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  ),/*
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
                   child: TextField(
@@ -163,6 +256,58 @@ class _WalletPageState extends State<WalletPage> {
                     },
                     child: Text(transactionString()),
                   ),
+                ), */
+                Padding(
+                  padding: const EdgeInsets.only(top: 32),
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      FocusScope.of(context).unfocus();
+                      if (amountController.text.isNotEmpty) {
+                        debugPrint("amountController: ${widget.connector.address}");
+                        debugPrint("amountController: ${amountController.text}");
+                        debugPrint("addressController: ${addressController.text}");
+                        if (Platform.isAndroid) {
+                          _launchURL("https://metamask.app.link/dapp/www.430.studio?contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${amountController.text}");
+                        }
+                        else {
+                        webViewController?.loadUrl(
+                          urlRequest: URLRequest(url: Uri.parse(
+                          "https://www.430.studio/?mode=verify&contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${amountController.text}")
+                          ));
+                        };
+                        setState(() { termsOfService = true; });
+                      };
+                    },
+                    child: Text("Create Account"),
+                  ),
+                ),
+                Visibility(
+                  visible: termsOfService,
+                  child: SizedBox (
+                      width: 640.0,
+                      height: 300.0,
+                      child: InAppWebView(
+                        //initialUrlRequest: URLRequest(url: Uri.parse("https://metamask.app.link/dapp/www.430.studio/")),
+                        //initialUrlRequest: URLRequest(url: Uri.parse("https://www.430.studio/")),
+                        initialOptions: InAppWebViewGroupOptions(
+                          crossPlatform: InAppWebViewOptions(
+                            mediaPlaybackRequiresUserGesture: false,
+                            //debuggingEnabled: true,
+                          ),
+                        ),
+                        onLoadHttpError: (controller, url, code, message) {
+                          debugPrint("Cant access site");
+                          setState( () { termsOfService = true; });
+                          webViewController?.loadFile(assetFilePath: "assets/error.html");
+                        },
+                        onWebViewCreated: (InAppWebViewController controller) {
+                         webViewController = controller;
+                        },
+                        androidOnPermissionRequest: (InAppWebViewController controller, String origin, List<String> resources) async {
+                          return PermissionRequestResponse(resources: resources, action: PermissionRequestResponseAction.GRANT);
+                        }
+                      ),
+                  ),
                 ),
               ],
             ),
@@ -183,6 +328,10 @@ class _WalletPageState extends State<WalletPage> {
       case TransactionState.failed:
         return 'Transaction failed';
     }
+  }
+
+  void _launchURL(String url) async {
+    await canLaunch(url) ? await launch(url) : throw 'Cannot Launch!';
   }
 
   Future<void> transactionAction() async {
@@ -209,6 +358,18 @@ class _WalletPageState extends State<WalletPage> {
         // Do nothing
         break;
     }
+  }
+
+  Future<void> accountCreation() async {
+
+    debugPrint("open: https://www.430.studio/?contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${amountController.text}");
+
+    webViewController?.loadUrl(
+      urlRequest: URLRequest(url: Uri.parse(
+        "https://www.430.studio/?contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${amountController.text}"))
+    );
+    setState( () { termsOfService = true; });  
+                    
   }
 
   void copyAddressToClipboard() {
