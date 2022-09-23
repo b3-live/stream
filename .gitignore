@@ -53,3 +53,6 @@ vendor/github.com/ImranR98/Circular-Video-Recorder/ios/Podfile
 desktop-app/build
 **.env
 **env/
+
+.build.sh
+**/build.gradle

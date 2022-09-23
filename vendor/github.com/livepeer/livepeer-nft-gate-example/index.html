@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Livepeer NFT Gate Example</title>
+    <style>
+      html {
+        font-family: sans-serif;
+      }
+      html,
+      body,
+      main {
+        height: 100%;
+      }
+      main {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: stretch;
+        max-width: 800px;
+        margin: auto;
+      }
+      main > div {
+        padding: 1em;
+        display: flex;
+      }
+      input {
+        flex-grow: 1;
+      }
+      input[type="radio"] {
+        display: inline;
+      }
+      textarea {
+        width: 100%;
+        height: 3em;
+      }
+    </style>
+  </head>
+  <body>
+
+    <main id="main" style="display: none;"></main>
+    <back id="back" style="display: none;">
+	<button style="color: red;" onclick="window.location.href='b3.live://dapp/success'+newsearch">Go Back to b3.live
+	</button>
+    </back>
+    <verify id="verify" style="display: none;">
+	<button style="color: red;" onclick="
+		newsearch=window.location.search.replace('mode=verify&','');
+		window.location.href='https://metamask.app.link/dapp/www.430.studio'+newsearch">Verify on MetaMask
+	</button>
+    </verify>
+    <script>
+	//alert(window.location.search);
+
+	function check() {
+          var a = document.getElementsByTagName('h3');
+
+          for (var idx= 0; idx < a.length; ++idx){
+            console.log(a[idx].innerText);
+	    //alert(a[idx].innerText);
+	    if (a[idx].innerText.startsWith("Success"))
+	      document.getElementById("back").style.display="block";
+		
+	  }
+	}
+
+	if (window.location.search.startsWith("?mode=verify")) {
+	  document.getElementById("verify").style.display="block";
+	  //alert("new query: " + window.location.search.replace('mode=verify&',''));
+	}
+	else {
+	    document.getElementById("main").style.display="block";
+	    setInterval(check,3000,);
+	}
+ /* 
+	  function checkForSuccess() {
+		var a = document.getElementById('mainframe').contentWindow.document.getElementsByTagName('h3');
+
+		for (var idx= 0; idx < a.length; ++idx){
+			console.log("H3: "+a[idx].innerHTML);
+			alert("H3: "+a[idx].innerHTML);
+		}
+	  }
+
+ 	setTimeout(checkForSuccess,10000);
+ */ 
+	
+    </script>
+    <script src="data-url:client.tsx" type="module"></script>
+  </body>
+</html>
