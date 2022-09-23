@@ -78,7 +78,8 @@ class MyApp extends StatelessWidget {
       title: 'b3.live',
       theme: ThemeData(
           colorScheme: const ColorScheme.light(
-              primary: Colors.black, secondary: Colors.amber)),
+              //primary: Colors.black, secondary: Colors.amber)),
+              primary: Colors.redAccent, secondary: Colors.amberAccent)),
       darkTheme: ThemeData(
           colorScheme: const ColorScheme.dark(
               primary: Colors.redAccent, secondary: Colors.amberAccent)),
@@ -680,7 +681,7 @@ class _MyHomePageState extends State<MyHomePage> {
               visualDensity: VisualDensity.compact,
               value: createNFT != null,
               activeColor: Theme.of(context).colorScheme.secondary,
-              title: const Text('Use Control Center'),
+              title: const Text('Mint NFT via'),
               subtitle: !metamaskInstalled 
                   ? Text(
                       'Metamask may not be installed')
@@ -692,16 +693,16 @@ class _MyHomePageState extends State<MyHomePage> {
           child:
             SwitchListTile(
               onChanged: (_) {
-                toggleWeb();
+                toggleLocal();
               },
               controlAffinity: ListTileControlAffinity.leading,
               visualDensity: VisualDensity.compact,
               value: server != null,
               activeColor: Theme.of(context).colorScheme.secondary,
-              title: const Text('Upload to Live.Peer'),
+              title: const Text('Use Control Center'),
               subtitle: _currentURI == null
                   ? Text(
-                    'No connection to b3.live',
+                    'Not connected',
                     style: const TextStyle(color: Colors.red)) : null, 
             ),
         ),
@@ -721,27 +722,54 @@ class _MyHomePageState extends State<MyHomePage> {
               )),
         if (saving || moving) const LinearProgressIndicator(),
       ]),
+      /*
       floatingActionButton: FloatingActionButton(
           child: Icon(
-            browser ? Icons.add_circle : Icons.arrow_circle_left),
-          /*child: Text(
-            browser ? "bcast" : "<< back",
-            textAlign: TextAlign.center,
-          ), */
+            browser ? Icons.add_circle : Icons.arrow_circle_left,
+            ),
           onPressed: () {
             setState(() {
-              //if (metamaskInstalled)
-              //  launch("https://metamask.app.link/dapp/b3.live/",forceWebView: true); 
-              browser = !browser;
-              if (_currentURI == null && browser == false)
-                _barCodeScanner(context);
-	      /*if (!camState)
-		killCam();
-              camState = !camState;
-	      if (!camState)
- 	        initCam(); */
             });
           }),
+          */
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(left:30),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            FloatingActionButton(
+            child: Icon(
+              Icons.video_file,),
+            /*child: Text(
+              browser ? "bcast" : "<< back",
+              textAlign: TextAlign.center,
+            ), */
+            onPressed: () {
+              setState(() {
+              });
+            }),
+            Expanded(child: Container()),
+            FloatingActionButton(
+            child: Icon(
+              browser ? Icons.add_circle : Icons.arrow_circle_left,
+              ),
+            onPressed: () {
+              setState(() {
+                //if (metamaskInstalled)
+               //  launch("https://metamask.app.link/dapp/b3.live/",forceWebView: true); 
+               browser = !browser;
+               if (_currentURI == null && browser == false)
+                 _barCodeScanner(context);
+               /*if (!camState)
+               killCam();
+               camState = !camState;
+               if (!camState)
+               initCam(); */
+              });
+            }),
+          ]
+        ),
+    )
     );
   }
 
@@ -763,14 +791,14 @@ class _MyHomePageState extends State<MyHomePage> {
   void _openWalletPage() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => WalletPage(connector: connector),
-      ),
-    );
+      builder: (context) => WalletPage(connector: connector),
+    ));
   }
 
   VoidCallback? _transactionStateToAction(BuildContext context,
       {required ConnectionState state}) {
-    print('State: ${_transactionStateToString(state: state)}');
+        
+    print('WalletPage State: ${_transactionStateToString(state: state)}');
     switch (state) {
       // Progress, action disabled
       case ConnectionState.connecting:
@@ -792,6 +820,8 @@ class _MyHomePageState extends State<MyHomePage> {
               Future.delayed(Duration.zero, () => _openWalletPage());
             } else {
               setState(() => _state = ConnectionState.connectionCancelled);
+              if (Platform.isAndroid)
+                showAlert();
             }
           } catch (e) {
             print('WC exception occured: $e');
@@ -831,7 +861,10 @@ class _MyHomePageState extends State<MyHomePage> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> toggleWeb() async {
+  Future<void> toggleLocal() async {
+    if (_currentURI == null)
+      _barCodeScanner(context);
+
     if (server == null) {
       try {
         ip = await NetworkInfo().getWifiIP();
@@ -910,6 +943,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void recordRecursively() async {
+    if (!cameraController.value.isInitialized)
+      initCam();
     if (recordMins > 0 && recordCount >= 0) {
       await cameraController.startVideoRecording();
       setState(() {
@@ -1067,6 +1102,35 @@ class _MyHomePageState extends State<MyHomePage> {
       print(errorMessage);
     }
   }
+
+  showAlert() async {
+          debugPrint("Showing Alert on Android");
+          showDialog(
+          context: context,
+          builder: (BuildContext ctx) {
+            return AlertDialog(
+              title: const Text('Potential Issue'),
+              content: const Text(
+                  'We noticed your wallet connection was cancelled.  If you choose MetaMask, and it was in the background, it may not have alllowed you to connect.\n\nIf you ran into this issue, please close MetaMask and close/restart b3.live. \n\nFinally, attempt to "Connect your Wallet" again.\n\nContinue?'),
+              actions: [
+                TextButton(
+                    onPressed: () async {
+                      // Remove the box
+                      setState(() {
+                      });
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Yes')),
+                TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('No'))
+              ],
+            );
+          });
+  }
+
   moveToGallery() async {
     List<FileSystemEntity> existingClips = await getExistingClips();
     if (existingClips.isEmpty) {
