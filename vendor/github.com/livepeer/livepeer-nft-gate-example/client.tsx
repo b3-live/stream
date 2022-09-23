@@ -45,61 +45,8 @@ const App = () => {
 
   return (
     <main>
-      <h3>Create a livestream only viewable by holders of a certain NFT!</h3>
-      <h4>Step 1: Define Gate</h4>
-      <div>
-        Token Contract Address:
-        <input
-          value={gate.contract}
-          onChange={(e) => setGate({ ...gate, contract: "0xd2e970718Aa32f2db4Bf94AafC22fDF866C3ff01" /*e.target.value*/ })}
-        ></input>
-      </div>
-      <div>
-        Network (default eth):
-        <input
-          value={gate.network}
-          onChange={(e) => setGate({ ...gate, network: e.target.value })}
-          placeholder="eth"
-        ></input>
-      </div>
-      <div>
-        Token Standard (default erc721):
-        <div
-          onChange={(e) =>
-            setGate({ ...gate, standard: (e.target as any).value })
-          }
-        >
-          &nbsp;ERC-721
-          <input
-            type="radio"
-            value="erc721"
-            name="standard"
-            checked={gate.standard === "erc721"}
-          />
-          &nbsp;ERC-1155
-          <input
-            type="radio"
-            value="erc1155"
-            name="standard"
-            checked={gate.standard === "erc1155"}
-          />
-        </div>
-      </div>
-      <div>
-        Message to sign
-        <input
-          value={gate.message}
-          onChange={(e) => setGate({ ...gate, message: e.target.value })}
-          placeholder="I have the NFT! Give me access."
-        ></input>
-      </div>
-
-      <h4>Step 2: Test your Gate</h4>
-      <p>
-        This will attempt a log in to your gate. If successful, it will play a
-        test stream.
-      </p>
-      <button
+      <h3>We will verify your account has a Lens profile using the below information:</h3>
+      <button style={{ color: "red" }}
         onClick={async () => {
           try {
 	    console.log("Get provider");
@@ -138,22 +85,58 @@ const App = () => {
           }
         }}
       >
-        Log in
+       Verify
       </button>
+      <div>
+        Address:
+        <input
+          value={gate.contract}
+          onChange={(e) => setGate({ ...gate, contract: "0xd2e970718Aa32f2db4Bf94AafC22fDF866C3ff01" /*e.target.value*/ })}
+        ></input>
+      </div>
+      <div>
+        Token Standard (default erc721)
+        <div style={{ display: "none" }}
+          onChange={(e) =>
+            setGate({ ...gate, standard: (e.target as any).value })
+          }
+        >
+          &nbsp;ERC-721
+          <input
+            type="radio"
+            value="erc721"
+            name="standard"
+            checked={gate.standard === "erc721"}
+          />
+          &nbsp;ERC-1155
+          <input
+            type="radio"
+            value="erc1155"
+            name="standard"
+            checked={gate.standard === "erc1155"}
+          />
+        </div>
+      </div>
+      <div>
+        User Name:
+        <input
+          value={gate.network}
+          onChange={(e) => setGate({ ...gate, network: e.target.value })}
+          placeholder="eth"
+        ></input>
+      </div>
+      <div>
+        Password / PIN:
+        <input
+          value={gate.message}
+          onChange={(e) => setGate({ ...gate, message: e.target.value })}
+          placeholder="I have the NFT! Give me access."
+        ></input>
+      </div>
+
       <h3 style={{ color: "red" }}>{errorText}</h3>
       {proof && <MistPlayer index={proof} proof={proof} />}
 
-      <h4>Step 3: Create your webhook</h4>
-      <p>
-        If this gate is working how you'd like, you should create a webhook that
-        looks something like this:
-        <pre>
-          <code>{sample(gate)}</code>
-        </pre>
-      </p>
-
-      <h4>Step 4: Embed this player in your site</h4>
-      <p>Coming soon!</p>
     </main>
   );
 };

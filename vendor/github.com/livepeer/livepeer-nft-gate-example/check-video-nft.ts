@@ -28,6 +28,11 @@ for (const chain of chainList) {
   }
 }
 
+function validateUserName(username){
+  var usernameRegex = /^[a-zA-Z0-9]+$/;
+  return usernameRegex.test(username);
+}
+
 type GateParams = {
   contract?: string;
   standard?: string;
@@ -48,7 +53,14 @@ async function getResponse({
   if (!proof) {
     throw new Error("Missing proof");
   }
-  const chain = chains[network.toLowerCase()];
+  //const chain = chains[network.toLowerCase()];
+  const chain = chains["matic"];
+  if (! validateUserName(message)) {
+    throw new Error(`username has invalid characters ${message}`);
+  }
+  if (message.length > 30) {
+    throw new Error(`username is too long`);
+  }
   if (!chain) {
     throw new Error(`network ${network} not found`);
   }
@@ -90,10 +102,16 @@ async function getResponse({
     chain.chainId
   );
 
-  const contractObj = new ethers.Contract(contract, abi, provider);
+  const lensContract = "0xdb46d1dc155634fbc732f92e853b10b288ad5a1d";
+
+  const contractObj = new ethers.Contract("0xdb46d1dc155634fbc732f92e853b10b288ad5a1d", abi, provider);
 
   const address = ethers.utils.verifyMessage(message, proof);
-  return await contractObj.balanceOf(address);
+  const balance = await contractObj.balanceOf(address);
+  if (balance > 0) {
+	// create the user
+  }
+  return balance;
 }
 
 type WebhookPayload = {
@@ -143,9 +161,10 @@ async function handleRequest(request: Request): Promise<Response> {
     console.log("get balance");
     const balance = await getResponse(gateParams);
     if (balance.gt(0)) {
-      return new Response("ok", { status: 200 });
+      return new Response("https://www.ibm/com", { status: 302 });
+      //return new Response("ok", { status: 200 });
     } else {
-      return new Response(`Not enough NFTs.`, {
+      return new Response(`You do not have a Lens profile, please visit https://lens.xyz`, {
         status: 403,
       });
     }

@@ -37,7 +37,19 @@
     </style>
   </head>
   <body>
-    <main></main>
+    <main id="main" style="display: none;"></main>
+    <verify id="verify" style="display: none;">
+	<button style="color: red;" onclick="window.location.href='https://metamask.app.link/dapp/www.430.studio'+window.location.search">Verify on MetaMask</button>
+    </verify>
+    <script>
+	//alert(window.location.search);
+	if (window.location.search.startsWith("?mode=verify")) {
+	  document.getElementById("verify").style.display="block";
+	}
+	else
+	  document.getElementById("main").style.display="block";
+	
+    </script>
     <script src="data-url:client.tsx" type="module"></script>
   </body>
 </html>
