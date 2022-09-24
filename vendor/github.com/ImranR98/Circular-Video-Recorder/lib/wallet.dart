@@ -333,19 +333,22 @@ class _WalletPageState extends State<WalletPage> {
           ),
         ),
       ),
-      floatingActionButton: Align(
-        child: FloatingActionButton(
-          child: Icon(
-            Icons.refresh,
-            ),
-          onPressed: () async {
-            const msg = "I-have-a-Lens-profile";
-            _launchURL("https://metamask.app.link/dapp/www.430.studio?contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${msg}");
-            setState(() {
-            });
-          },
+      floatingActionButton: Visibility(
+        visible: false /*termsOfService && Platform.isAndroidi*/,
+        child: Align(
+          child: FloatingActionButton(
+            child: Icon(
+              Icons.refresh,
+              ),
+            onPressed: () async {
+              const msg = "I-have-a-Lens-profile";
+              _launchURL("https://metamask.app.link/dapp/www.430.studio?contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${msg}");
+              setState(() {
+              });
+            },
           ),
           alignment: Alignment(1, 0.7),
+        ),
       ),
     );
   }
