@@ -27,6 +27,9 @@ import 'ethereum_test_connector.dart';
 
 import 'package:ssh2/ssh2.dart';
 
+import 'package:floating/floating.dart';
+
+
 late List<CameraDescription> _cameras;
 late Directory saveDir;
 bool _initialURILinkHandled = false;
@@ -76,6 +79,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'b3.live',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
           colorScheme: const ColorScheme.light(
               //primary: Colors.black, secondary: Colors.amber)),
@@ -98,6 +102,8 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final floating = Floating();
+
   TestConnector connector = EthereumTestConnector();
 
   static const _networks = ['Ethereum (Ropsten)', 'Algorand (Testnet)'];
@@ -194,6 +200,11 @@ class _MyHomePageState extends State<MyHomePage> {
     metamaskInstalled = await canLaunch("https://metamask.app.link");
   }
   
+  Future<void> enablePip() async {
+    final status = await floating.enable(Rational.landscape());
+    debugPrint('PiP enabled? $status');
+  }
+
   Future<void> _initURIHandler() async {
     if (!_initialURILinkHandled) {
       _initialURILinkHandled = true;
@@ -377,10 +388,14 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      //appBar: AppBar(
-     //  title: Text(widget.title),
-     // ),
+      /*appBar: AppBar(
+       title: Text(widget.title),
+      ),*/
       body: Column(children: [
+       /* PiPSwitcher(
+              childWhenDisabled: const Text('disabled'),
+              childWhenEnabled: const Text('enabled'),
+            ), */
         Visibility(
           visible: !browser,
 	  child:
@@ -532,7 +547,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         initialUrlRequest:
                         //URLRequest(url: Uri.parse("https://audiomotion.me")),
                         //URLRequest(url: Uri.parse("http://$ip:8080")),
-
+                        //URLRequest(url: Uri.parse("https://googlechrome.github.io/samples/picture-in-picture/")),
                         URLRequest(url: Uri.parse("https://your.cmptr.cloud:2017/stream/b3.live-site/")),
                         //URLRequest(url: Uri.parse("https://blog.minhazav.dev/research/html5-qrcode")),
                         initialOptions: options,
@@ -726,16 +741,7 @@ class _MyHomePageState extends State<MyHomePage> {
               )),
         if (saving || moving) const LinearProgressIndicator(),
       ]),
-      /*
-      floatingActionButton: FloatingActionButton(
-          child: Icon(
-            browser ? Icons.add_circle : Icons.arrow_circle_left,
-            ),
-          onPressed: () {
-            setState(() {
-            });
-          }),
-          */
+          
       floatingActionButton: Padding(
         padding: EdgeInsets.only(left:30),
         child: Row(
@@ -773,7 +779,7 @@ class _MyHomePageState extends State<MyHomePage> {
             }),
           ]
         ),
-    )
+    ) 
     );
   }
 
@@ -1187,6 +1193,7 @@ class _MyHomePageState extends State<MyHomePage> {
     cameraController.dispose();
     KeepScreenOn.turnOff();
     _streamSubscription?.cancel();
+    floating.dispose();
     super.dispose();
   }
 }
