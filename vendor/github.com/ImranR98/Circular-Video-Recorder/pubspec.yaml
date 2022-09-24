@@ -58,6 +58,7 @@ dependencies:
   walletconnect_dart: ^0.0.11
   web3dart: ^2.3.3
   ssh2: ^2.2.3
+  floating: ^1.1.0
 
 flutter_icons:
   android: true

@@ -5,6 +5,9 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'dart:io';
 import 'test_connector.dart';
 
+import 'package:floating/floating.dart';
+
+
 enum TransactionState {
   idle,
   sending,
@@ -25,6 +28,7 @@ class WalletPage extends StatefulWidget {
 }
 
 class _WalletPageState extends State<WalletPage> {
+  final floating = Floating();
   bool termsOfService = false;
   final GlobalKey webViewKey = GlobalKey();
   InAppWebViewController? webViewController;
@@ -58,6 +62,11 @@ class _WalletPageState extends State<WalletPage> {
   void initState() {
     Future.delayed(const Duration(seconds: 1), () => copyAddressToClipboard());
     super.initState();
+  }
+
+  Future<void> enablePip() async {
+    final status = await floating.enable(Rational.landscape());
+    debugPrint('PiP enabled? $status');
   }
 
   @override
@@ -261,24 +270,33 @@ class _WalletPageState extends State<WalletPage> {
                   padding: const EdgeInsets.only(top: 32),
                   child: ElevatedButton(
                     onPressed: () async {
+                      if (termsOfService && Platform.isAndroid)
+                        Navigator.of(context).pop();
                       FocusScope.of(context).unfocus();
                       if (amountController.text.isNotEmpty) {
                         debugPrint("amountController: ${widget.connector.address}");
                         debugPrint("amountController: ${amountController.text}");
                         debugPrint("addressController: ${addressController.text}");
-                        if (Platform.isAndroid) {
-                          _launchURL("https://metamask.app.link/dapp/www.430.studio?contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${amountController.text}");
+                        const String msg = "I-have-a-Lens-profile";
+                        if (Platform.isAndroid && !termsOfService) {
+                          await enablePip();
+                          //await systemBrowser("https://googlechrome.github.io/samples/picture-in-picture/");
+                          //await systemBrowser("https://your.cmptr.cloud:2017/chrome.html");
+
+                          _launchURL("https://metamask.app.link/dapp/www.430.studio?contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${msg}");
                         }
-                        else {
+                        else if (!termsOfService || !Platform.isAndroid) {
                         webViewController?.loadUrl(
                           urlRequest: URLRequest(url: Uri.parse(
-                          "https://www.430.studio/?mode=verify&contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${amountController.text}")
+                          "https://www.430.studio/?mode=verify&contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${msg}")
                           ));
+                        webViewController?.loadUrl(
+                          urlRequest: URLRequest(url: await webViewController?.getUrl()));
                         };
                         setState(() { termsOfService = true; });
                       };
                     },
-                    child: Text("Create Account"),
+                    child: Text(termsOfService ? "Accept" : "Create Account"),
                   ),
                 ),
                 Visibility(
@@ -288,7 +306,7 @@ class _WalletPageState extends State<WalletPage> {
                       height: 300.0,
                       child: InAppWebView(
                         //initialUrlRequest: URLRequest(url: Uri.parse("https://metamask.app.link/dapp/www.430.studio/")),
-                        //initialUrlRequest: URLRequest(url: Uri.parse("https://www.430.studio/")),
+                        initialUrlRequest: URLRequest(url: Uri.parse("https://your.cmptr.cloud:2017/terms.html")),
                         initialOptions: InAppWebViewGroupOptions(
                           crossPlatform: InAppWebViewOptions(
                             mediaPlaybackRequiresUserGesture: false,
@@ -332,6 +350,11 @@ class _WalletPageState extends State<WalletPage> {
 
   void _launchURL(String url) async {
     await canLaunch(url) ? await launch(url) : throw 'Cannot Launch!';
+  }
+
+  Future<void> systemBrowser(String url) async {
+    if (await canLaunchUrl(Uri.parse(url)))
+      await launchUrl(Uri.parse(url)); 
   }
 
   Future<void> transactionAction() async {
