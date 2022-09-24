@@ -45,6 +45,9 @@ const App = () => {
 
   return (
     <main>
+      <br/>
+      <br/>
+      <br/>
       <h3>We will verify your account has a Lens profile using the below information:</h3>
       <button class="button" style={{ color: "black" }}
         onClick={async () => {
@@ -104,7 +107,7 @@ const App = () => {
 		  },
 		};
 	      if (data == "Success" && isMobile.android())
-                setErrorText("Good news, your profile has been verified! Please close this MetaMask tab, then hit the 'back arrow' ← in the b3.live floating window.");
+                setErrorText("Good news, your profile has been verified! Please close this MetaMask tab, then click on the b3.live floating window and hit the 'resize button' ⤢ to return to the app.");
               return;
             }
             console.log(data);

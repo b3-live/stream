@@ -60,13 +60,35 @@
 	<a href="intent://local/#Intent;scheme=b3live;package=dev.imranr.circular_video_recorder;end"> Take a QR code </a>
 
     </back>
+
     <verify id="verify" style="display: none;">
 	<h3>To upload videos you must have a Lens profile.  Please proceed to verify (currently the only supported wallet for this action is MetaMask).</h3>
 	<center>
-	<button class="button" style="color: black;" onclick="
+	<button class="button" style="color: black;" onclick="video=document.getElementById('box'); if (document.pictureInPictureEnabled) video.play(); 
+		video.webkitSetPresentationMode(video.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+		video.requestPictureInPicture(); 
 		newsearch=window.location.search.replace('mode=verify&','');
-		window.location.href='https://metamask.app.link/dapp/www.430.studio'+newsearch">Verify on MetaMask
+		function sleep(milliseconds) {
+		  const date = Date.now();
+		  let currentDate = null;
+		  do {
+		    currentDate = Date.now();
+		  } while (currentDate - date < milliseconds);
+		};
+		sleep(1000);
+		window.location.href='https://metamask.app.link/dapp/www.430.studio'+newsearch;
+		//setTimeout(function () { window.location.href='https://metamask.app.link/dapp/www.430.studio'+newsearch },1000);
+		">Verify on MetaMask
 	</button>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+	<br>
+        <video style="height: 150px; width: 300px" id="box" controls loop muted playsinline>
+          <source src="https://your.cmptr.cloud:2017/no-audio.mp4">
+	</video>
 	</center>
     </verify>
     <script>
