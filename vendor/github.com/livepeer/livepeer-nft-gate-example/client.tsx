@@ -46,7 +46,7 @@ const App = () => {
   return (
     <main>
       <h3>We will verify your account has a Lens profile using the below information:</h3>
-      <button style={{ color: "red" }}
+      <button class="button" style={{ color: "black" }}
         onClick={async () => {
           try {
 	    console.log("Get provider");
@@ -117,7 +117,7 @@ const App = () => {
           />
         </div>
       </div>
-      <div>
+      <div style={{ display: "none" }}>
         User Name:
         <input
           value={gate.network}
@@ -125,8 +125,8 @@ const App = () => {
           placeholder="eth"
         ></input>
       </div>
-      <div>
-        Password / PIN:
+      <div style={{ display: "none" }}>
+        Message:
         <input
           value={gate.message}
           onChange={(e) => setGate({ ...gate, message: e.target.value })}

@@ -34,20 +34,40 @@
         width: 100%;
         height: 3em;
       }
+	.button {
+	  background-color: #FC444B;
+	  border: none;
+	  color: black;
+  	  border-radius: 8px;
+	  padding: 15px 32px;
+	  text-align: center;
+	  text-decoration: none;
+	  display: inline-block;
+	  font-size: 16px;
+	  margin: 4px 2px;
+	  cursor: pointer;
+	}
     </style>
   </head>
   <body>
 
     <main id="main" style="display: none;"></main>
     <back id="back" style="display: none;">
-	<button style="color: red;" onclick="window.location.href='b3.live://dapp/success'+newsearch">Go Back to b3.live
+        <button type="button" onclick="window.open('', '_self', ''); window.close();">Discard</button>
+	<button class="button" style="color: red;" onclick="window.location.href='b3live://dapp/success'+newsearch">Go Back to b3.live
 	</button>
+	<a href="b3live://dapp/success">Back</a>
+	<a href="intent://local/#Intent;scheme=b3live;package=dev.imranr.circular_video_recorder;end"> Take a QR code </a>
+
     </back>
     <verify id="verify" style="display: none;">
-	<button style="color: red;" onclick="
+	<h3>To upload videos you must have a Lens profile.  Please proceed to verify (currently the only supported wallet for this action is MetaMask).</h3>
+	<center>
+	<button class="button" style="color: black;" onclick="
 		newsearch=window.location.search.replace('mode=verify&','');
 		window.location.href='https://metamask.app.link/dapp/www.430.studio'+newsearch">Verify on MetaMask
 	</button>
+	</center>
     </verify>
     <script>
 	//alert(window.location.search);
@@ -58,9 +78,10 @@
           for (var idx= 0; idx < a.length; ++idx){
             console.log(a[idx].innerText);
 	    //alert(a[idx].innerText);
-	    if (a[idx].innerText.startsWith("Success"))
+	    if (a[idx].innerText.startsWith("Success")) {
 	      document.getElementById("back").style.display="block";
-		
+	      //alert("Lens Profile has been verified");
+	    }
 	  }
 	}
 
@@ -72,18 +93,6 @@
 	    document.getElementById("main").style.display="block";
 	    setInterval(check,3000,);
 	}
- /* 
-	  function checkForSuccess() {
-		var a = document.getElementById('mainframe').contentWindow.document.getElementsByTagName('h3');
-
-		for (var idx= 0; idx < a.length; ++idx){
-			console.log("H3: "+a[idx].innerHTML);
-			alert("H3: "+a[idx].innerHTML);
-		}
-	  }
-
- 	setTimeout(checkForSuccess,10000);
- */ 
 	
     </script>
     <script src="data-url:client.tsx" type="module"></script>

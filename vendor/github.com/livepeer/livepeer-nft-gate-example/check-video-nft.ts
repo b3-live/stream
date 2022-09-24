@@ -29,7 +29,7 @@ for (const chain of chainList) {
 }
 
 function validateUserName(username){
-  var usernameRegex = /^[a-zA-Z0-9]+$/;
+  var usernameRegex = /^[a-zA-Z0-9-]+$/;
   return usernameRegex.test(username);
 }
 
