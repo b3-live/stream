@@ -50,7 +50,23 @@ const App = () => {
         onClick={async () => {
           try {
 	    console.log("Get provider");
-            setErrorText("");
+            setErrorText("Please wait for verification to complete");
+		(function () {
+		    var i = 0;
+		    window.loop = true;
+		    var callback = function() { 
+			i++
+			var msg="Please wait for verification to complete"
+			for(var j=0; j < i; j++)
+			  msg=msg+"."
+            		if (window.loop)
+			  setErrorText(msg)
+		    };
+
+		    callback();
+
+		    window.setInterval(callback, 500);
+		})();
             const provider = new ethers.providers.Web3Provider(
               window.ethereum,
               "any"
@@ -75,7 +91,20 @@ const App = () => {
             });
             const data = await res.text();
             if (res.status !== 200) {
+	      window.loop = false;
               setErrorText(data);
+	      const ua = navigator.userAgent;
+	      var device = "Other";
+		const isMobile = {
+		  android() {
+		    return /Android/i.test(navigator.userAgent);
+		  },
+		  iOS() {
+		    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+		  },
+		};
+	      if (data == "Success" && isMobile.android())
+                setErrorText("Good news, your profile has been verified! Please close this MetaMask tab, then hit the 'back arrow' ← in the b3.live floating window.");
               return;
             }
             console.log(data);
