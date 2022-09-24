@@ -79,6 +79,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'b3.live',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
           colorScheme: const ColorScheme.light(
               //primary: Colors.black, secondary: Colors.amber)),
@@ -387,9 +388,9 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      //appBar: AppBar(
-     //  title: Text(widget.title),
-     // ),
+      /*appBar: AppBar(
+       title: Text(widget.title),
+      ),*/
       body: Column(children: [
        /* PiPSwitcher(
               childWhenDisabled: const Text('disabled'),
@@ -740,16 +741,7 @@ class _MyHomePageState extends State<MyHomePage> {
               )),
         if (saving || moving) const LinearProgressIndicator(),
       ]),
-      /*
-      floatingActionButton: FloatingActionButton(
-          child: Icon(
-            browser ? Icons.add_circle : Icons.arrow_circle_left,
-            ),
-          onPressed: () {
-            setState(() {
-            });
-          }),
-          */
+          
       floatingActionButton: Padding(
         padding: EdgeInsets.only(left:30),
         child: Row(
