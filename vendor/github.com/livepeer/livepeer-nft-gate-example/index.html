@@ -53,18 +53,12 @@
 
     <main id="main" style="display: none;"></main>
     <back id="back" style="display: none;">
-        <button type="button" onclick="window.open('', '_self', ''); window.close();">Discard</button>
-	<button class="button" style="color: red;" onclick="window.location.href='b3live://dapp/success'+newsearch">Go Back to b3.live
-	</button>
-	<a href="b3live://dapp/success">Back</a>
-	<a href="intent://local/#Intent;scheme=b3live;package=dev.imranr.circular_video_recorder;end"> Take a QR code </a>
-
     </back>
 
     <verify id="verify" style="display: none;">
 	<h3>To upload videos you must have a Lens profile.  Please proceed to verify (currently the only supported wallet for this action is MetaMask).</h3>
 	<center>
-	<button class="button" style="color: black;" onclick="video=document.getElementById('box'); if (document.pictureInPictureEnabled) video.play(); 
+	<!--button class="button" style="color: black;" onclick="video=document.getElementById('box'); if (document.pictureInPictureEnabled) video.play(); 
 		video.webkitSetPresentationMode(video.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
 		video.requestPictureInPicture(); 
 		newsearch=window.location.search.replace('mode=verify&','');
@@ -79,6 +73,11 @@
 		window.location.href='https://metamask.app.link/dapp/www.430.studio'+newsearch;
 		//setTimeout(function () { window.location.href='https://metamask.app.link/dapp/www.430.studio'+newsearch },1000);
 		">Verify on MetaMask
+	</button-->
+	<button class="button" style="color: black;" onclick="
+		newsearch=window.location.search.replace('mode=verify&','');
+		window.location.href='https://metamask.app.link/dapp/www.430.studio'+newsearch;">
+	  Verify on MetaMask
 	</button>
 	<br>
 	<br>
@@ -86,9 +85,9 @@
 	<br>
 	<br>
 	<br>
-        <video style="height: 150px; width: 300px" id="box" controls loop muted playsinline>
+        <!--video style="height: 150px; width: 300px" id="box" controls loop muted playsinline>
           <source src="https://your.cmptr.cloud:2017/no-audio.mp4">
-	</video>
+	</video-->
 	</center>
     </verify>
     <script>

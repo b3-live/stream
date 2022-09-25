@@ -111,8 +111,8 @@ async function getResponse({
 
   if (balance > 0) {
     console.log(`balance is ${balance}`);
-    console.log(`fetch http://localhost:8001/user?${network}:${proof}:${network}`);
-    const res = await fetch(`http://localhost:8001/user?${network}:${proof}:${network}`, {
+    console.log(`fetch http://localhost:8001/user?${network}:${message}:${address}`);
+    const res = await fetch(`http://localhost:8001/user?${network}:${message}:${address}`.toLowerCase(), {
       method: "GET",
     });
     if (res.status !== 200) {

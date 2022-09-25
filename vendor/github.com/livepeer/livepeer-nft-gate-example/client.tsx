@@ -49,12 +49,15 @@ const App = () => {
       <br/>
       <br/>
       <h3>We will verify your account has a Lens profile using the below information:</h3>
+
+
       <button class="button" style={{ color: "black" }}
         onClick={async () => {
           try {
 	    console.log("Get provider");
             setErrorText("Please wait for verification to complete");
 		(function () {
+
 		    var i = 0;
 		    window.loop = true;
 		    var callback = function() { 
@@ -93,6 +96,7 @@ const App = () => {
               }),
             });
             const data = await res.text();
+
             if (res.status !== 200) {
 	      window.loop = false;
               setErrorText(data);
@@ -107,7 +111,9 @@ const App = () => {
 		  },
 		};
 	      if (data == "Success" && isMobile.android())
-                setErrorText("Good news, your profile has been verified! Please close this MetaMask tab, then click on the b3.live floating window and hit the 'resize button' ⤢ to return to the app.");
+                setErrorText(`Good news, your profile has been verified! Please close this MetaMask tab, then click on the b3.live floating window and hit the 'resize button' ⤢ to return to the app.`);
+	      else if (data == "Success")
+                setErrorText(`Good news, your profile has been verified! Please close this MetaMask tab, then navigate back to the b3.live app`);
               return;
             }
             console.log(data);
