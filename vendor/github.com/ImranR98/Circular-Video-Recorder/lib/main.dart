@@ -756,6 +756,7 @@ class _MyHomePageState extends State<MyHomePage> {
               textAlign: TextAlign.center,
             ), */
             onPressed: () {
+              _loadHome();
               setState(() {
               });
             }),
@@ -840,6 +841,19 @@ class _MyHomePageState extends State<MyHomePage> {
           }
         };
     }
+  }
+
+  Future<void> _loadHome() async {
+
+    final prefs = await SharedPreferences.getInstance();
+    final addr = (prefs.getString('address') ?? "");
+    final uid = (prefs.getString('username') ?? "");
+
+    debugPrint("uid ${uid} addr ${addr}");
+
+    if (addr != "" && uid != "")
+      webViewController?.loadUrl(
+        urlRequest: URLRequest(url: Uri.parse("https://your.cmptr.cloud:2017/b3.live/${uid}/${addr}/")));
   }
 
   Future<void> _barCodeScanner(BuildContext context) async {
