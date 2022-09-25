@@ -28,6 +28,7 @@ import 'ethereum_test_connector.dart';
 import 'package:ssh2/ssh2.dart';
 
 import 'package:floating/floating.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 late List<CameraDescription> _cameras;
@@ -1027,14 +1028,18 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> onClickSFTP(String path, String fileName) async {
     String result = '';
     List array = [];
+    final prefs = await SharedPreferences.getInstance();
 
     //resetValues();
+    final uid = prefs.getString('username') ?? 'foo';
+    final pass = prefs.getString('pin') ?? 'pass';
+    final todir = prefs.getString('address') ?? 'testftp';
 
     var client = new SSHClient(
       host: "dev.meetbeek.com",
       port: 8022,
-      username: 'foo',
-      passwordOrKey: 'pass',
+      username: uid,
+      passwordOrKey: pass,
     );
     try {
       result = await client.connect() ?? 'Null result';
@@ -1067,6 +1072,7 @@ class _MyHomePageState extends State<MyHomePage> {
           final File file = File('$tempPath/$fileName');
           await file.writeAsString('Testing file upload');
 
+
           debugPrint('Local file path is ${file.path}');
           debugPrint('Video video path ${path}');
           debugPrint('Video clip filename is ${fileName}');
@@ -1074,7 +1080,7 @@ class _MyHomePageState extends State<MyHomePage> {
           // Upload test file
           debugPrint(await client.sftpUpload(
             path: "${path}/${fileName}" /*file.path*/,
-            toPath: "./testftp/" /*"./testftp/"*/,
+            toPath: "./${todir}/" /*"./testftp/"*/,
             callback: (progress) async {
               debugPrint("Progress ${progress}");
               // if (progress == 30) await client.sftpCancelUpload();

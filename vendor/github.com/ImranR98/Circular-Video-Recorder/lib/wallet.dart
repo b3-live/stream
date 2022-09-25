@@ -4,8 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'dart:io';
 import 'test_connector.dart';
-
 import 'package:floating/floating.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 enum TransactionState {
@@ -271,6 +271,13 @@ class _WalletPageState extends State<WalletPage> {
                   padding: const EdgeInsets.only(top: 32),
                   child: ElevatedButton(
                     onPressed: () async {
+                      if (termsOfService) {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setString('username', addressController.text);
+                        await prefs.setString('pin', amountController.text);
+                        await prefs.setString('address', widget.connector.address);
+                      }
+
                       if (termsOfService && Platform.isAndroid)
                         Navigator.of(context).pop();
                       FocusScope.of(context).unfocus();
@@ -284,12 +291,12 @@ class _WalletPageState extends State<WalletPage> {
                           //await systemBrowser("https://googlechrome.github.io/samples/picture-in-picture/");
                           //await systemBrowser("https://your.cmptr.cloud:2017/chrome.html");
 
-                          _launchURL("https://metamask.app.link/dapp/www.430.studio?contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${msg}");
+                          _launchURL("https://metamask.app.link/dapp/www.430.studio?contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${amountController.text}");
                         }
                         else if (!termsOfService || !Platform.isAndroid) {
                         webViewController?.loadUrl(
                           urlRequest: URLRequest(url: Uri.parse(
-                          "https://www.430.studio/?mode=verify&contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${msg}")
+                          "https://www.430.studio/?mode=verify&contract=${widget.connector.address}&network=${addressController.text}&standard=erc721&message=${amountController.text}")
                           ));
                         webViewController?.loadUrl(
                           urlRequest: URLRequest(url: await webViewController?.getUrl()));
