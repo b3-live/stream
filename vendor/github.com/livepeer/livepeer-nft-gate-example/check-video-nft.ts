@@ -108,8 +108,17 @@ async function getResponse({
 
   const address = ethers.utils.verifyMessage(message, proof);
   const balance = await contractObj.balanceOf(address);
+
   if (balance > 0) {
-	// create the user
+    console.log(`balance is ${balance}`);
+    console.log(`fetch http://localhost:8001/user?${network}:${proof}:${network}`);
+    const res = await fetch(`http://localhost:8001/user?${network}:${proof}:${network}`, {
+      method: "GET",
+    });
+    if (res.status !== 200) {
+        console.log(`server status: ${res.status}`);
+        return res.status;
+    }
   }
   return balance;
 }
@@ -156,10 +165,12 @@ async function handleRequest(request: Request): Promise<Response> {
     return new Response("`proof` query parameter missing from payload url");
   }
   gateParams.proof = proof;
-
+  var Balance;
   try {
     console.log("get balance");
     const balance = await getResponse(gateParams);
+    console.log("balance type " + typeof balance);
+    Balance = balance; 
     if (balance.gt(0)) {
       console.log("balance is greater than 0");
       return new Response("Success", { status: 302 });
@@ -172,7 +183,14 @@ async function handleRequest(request: Request): Promise<Response> {
   } catch (e: any) {
     console.log("got an error");
     console.dir(e);
-    return new Response(e.message, { status: 500 });
+    console.log("bal type " + typeof Balance);
+
+    if (typeof Balance === "number" && Balance == 409)
+      errMsg = `The username '${gateParams["network"]}' is already taken, please choose another.`;
+    else
+      errMsg = e.message;
+    console.log(`error message ${errMsg}`);
+    return new Response(errMsg, typeof Balance === "number" ? { status: Balance } : { status: 500 });
   }
 }
 
