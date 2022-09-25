@@ -45,12 +45,31 @@ const App = () => {
 
   return (
     <main>
+      <br/>
+      <br/>
+      <br/>
       <h3>We will verify your account has a Lens profile using the below information:</h3>
-      <button style={{ color: "red" }}
+      <button class="button" style={{ color: "black" }}
         onClick={async () => {
           try {
 	    console.log("Get provider");
-            setErrorText("");
+            setErrorText("Please wait for verification to complete");
+		(function () {
+		    var i = 0;
+		    window.loop = true;
+		    var callback = function() { 
+			i++
+			var msg="Please wait for verification to complete"
+			for(var j=0; j < i; j++)
+			  msg=msg+"."
+            		if (window.loop)
+			  setErrorText(msg)
+		    };
+
+		    callback();
+
+		    window.setInterval(callback, 500);
+		})();
             const provider = new ethers.providers.Web3Provider(
               window.ethereum,
               "any"
@@ -75,7 +94,20 @@ const App = () => {
             });
             const data = await res.text();
             if (res.status !== 200) {
+	      window.loop = false;
               setErrorText(data);
+	      const ua = navigator.userAgent;
+	      var device = "Other";
+		const isMobile = {
+		  android() {
+		    return /Android/i.test(navigator.userAgent);
+		  },
+		  iOS() {
+		    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+		  },
+		};
+	      if (data == "Success" && isMobile.android())
+                setErrorText("Good news, your profile has been verified! Please close this MetaMask tab, then click on the b3.live floating window and hit the 'resize button' ⤢ to return to the app.");
               return;
             }
             console.log(data);
@@ -117,7 +149,7 @@ const App = () => {
           />
         </div>
       </div>
-      <div>
+      <div style={{ display: "none" }}>
         User Name:
         <input
           value={gate.network}
@@ -125,8 +157,8 @@ const App = () => {
           placeholder="eth"
         ></input>
       </div>
-      <div>
-        Password / PIN:
+      <div style={{ display: "none" }}>
+        Message:
         <input
           value={gate.message}
           onChange={(e) => setGate({ ...gate, message: e.target.value })}
